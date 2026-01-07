@@ -8,4 +8,4 @@ scp $localDll "${remote}:${remoteDir}/"
 # 2. 远程执行 Docker 命令
 ssh $remote "cd /opt/emby && docker compose restart"
 
-Read-Host "..."
+Read-Host "Finish."

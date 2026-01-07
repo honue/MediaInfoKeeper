@@ -68,6 +68,11 @@ namespace MediaInfoKeeper.Services
         public async Task<bool?> OrchestrateMediaInfoProcessAsync(BaseItem taskItem, string source,
             CancellationToken cancellationToken)
         {
+            if (!IsItemInScope(taskItem))
+            {
+                return null;
+            }
+
             var persistMediaInfo = taskItem is Video && Plugin.Instance.Options.PersistMediaInfoEnabled;
             if (!persistMediaInfo)
             {
@@ -131,6 +136,60 @@ namespace MediaInfoKeeper.Services
             }
 
             return true;
+        }
+
+        /// <summary>根据配置判断条目是否属于选定媒体库。</summary>
+        public bool IsItemInScope(BaseItem item)
+        {
+            var scopedLibraries = GetScopedLibraryKeys();
+            if (scopedLibraries.Count == 0)
+            {
+                return true;
+            }
+
+            foreach (var collectionFolder in this.libraryManager.GetCollectionFolders(item))
+            {
+                if (collectionFolder == null)
+                {
+                    continue;
+                }
+
+                var name = collectionFolder.Name?.Trim();
+                if (!string.IsNullOrEmpty(name) &&
+                    scopedLibraries.Contains(name))
+                {
+                    return true;
+                }
+
+                if (scopedLibraries.Contains(collectionFolder.InternalId.ToString()))
+                {
+                    return true;
+                }
+
+                var id = collectionFolder.Id.ToString();
+                if (scopedLibraries.Contains(id))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private HashSet<string> GetScopedLibraryKeys()
+        {
+            var raw = Plugin.Instance.Options.ScopedLibraries;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var tokens = raw
+                .Split(new[] { ',', ';', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(value => value.Trim())
+                .Where(value => !string.IsNullOrEmpty(value));
+
+            return new HashSet<string>(tokens, StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>复制库配置，用于元数据刷新流程。</summary>
