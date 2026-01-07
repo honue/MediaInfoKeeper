@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "EmbyPluginSimpleUI": {
+      "commandName": "Project"
+    },
+    "EmbyServer": {
+      "commandName": "Executable",
+      "executablePath": "%AppData%\\Emby-Server\\system\\EmbyServer.exe",
+      "commandLineArgs": "-nointerface",
+      "workingDirectory": "%AppData%\\Emby-Server\\system"
+    }
+  }
+}

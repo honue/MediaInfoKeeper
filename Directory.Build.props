@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>Build\obj\</BaseIntermediateOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;Build\**;artifacts\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

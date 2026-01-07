@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Description>MediaInfoKeeper Emby plugin</Description>
+    <PackageTags>emby;plugin;pms;media;server;</PackageTags>
+    <BaseOutputPath>Build\bin\</BaseOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Resources\\ThumbImage.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\\ThumbImage.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.90" />
+    <PackageReference Include="System.Memory" Version="4.6.3" />
+  </ItemGroup>
+
+</Project>
