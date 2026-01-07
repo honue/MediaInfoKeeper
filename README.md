@@ -39,27 +39,14 @@ MediaInfoKeeper 的目标是把媒体信息保存为 JSON，在需要时快速�
 ------
 
 - 启用 MediaInfo：启用后优先恢复，提取后写入 JSON。
+ - 追更媒体库：用于入库触发与删除 JSON 逻辑；留空表示全部。支持多选。
+ - 计划任务媒体库：用于计划任务范围；留空表示全部。支持多选。
+- 最近入库条目数量：用于“最近条目提取媒体信息”计划任务，默认 100。
 - MediaInfo JSON 存储根目录：为空时保存到媒体文件同目录（支持文件夹选择器）。
 - 条目移除时删除 JSON：删除条目时移除对应 JSON。
-- 限定媒体库：仅对选定媒体库生效；留空表示全部。可填写媒体库名称或 ID，多个用逗号/分号/换行分隔。
 
-相关 API（实现用到的 Emby 接口）
-----------------------------
+计划任务
+--------
 
-提取与刷新
-- `IProviderManager.RefreshSingleItem(...)`：触发媒体信息提取。
-- `MetadataRefreshOptions`：刷新策略，关闭远程元数据/图片抓取。
-- `ILibraryManager.GetLibraryOptions(...)`：获取库配置并构造最小化选项。
-
-媒体源与流信息
-- `BaseItem.GetMediaSources(...)`：获取 MediaSourceInfo。
-- `MediaSourceInfo.MediaStreams`：音视频流与字幕流信息。
-
-章节与写回
-- `IItemRepository.GetChapters(...)` / `SaveChapters(...)`：读写章节信息。
-- `IItemRepository.SaveMediaStreams(...)`：写回媒体流信息。
-- `ILibraryManager.UpdateItems(...)`：更新条目基础字段（时长、大小、码率、分辨率等）。
-
-持久化与恢复
-- `IJsonSerializer.SerializeToFile(...)` / `DeserializeFromFileAsync(...)`：JSON 保存与恢复。
-- `IFileSystem` / `IDirectoryService`：文件读写、路径处理与存在性检查。
+- MediaInfoKeeper - 批量提取媒体信息：对计划任务媒体库范围内的存量视频条目执行提取并写入 JSON。
+- MediaInfoKeeper - 最近条目提取媒体信息：对计划任务媒体库范围内的最近入库条目执行提取并写入 JSON（数量可配置）。

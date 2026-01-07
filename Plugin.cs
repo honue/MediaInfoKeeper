@@ -112,6 +112,16 @@ namespace MediaInfoKeeper
 
         protected override bool OnOptionsSaving(PluginConfiguration options)
         {
+            if (string.IsNullOrWhiteSpace(options.CatchupLibraries) &&
+                string.IsNullOrWhiteSpace(options.ScheduledTaskLibraries) &&
+                !string.IsNullOrWhiteSpace(options.ScopedLibraries))
+            {
+                options.CatchupLibraries = options.ScopedLibraries;
+                options.ScheduledTaskLibraries = options.ScopedLibraries;
+            }
+
+            options.CatchupLibraries = NormalizeScopedLibraries(options.CatchupLibraries);
+            options.ScheduledTaskLibraries = NormalizeScopedLibraries(options.ScheduledTaskLibraries);
             options.ScopedLibraries = NormalizeScopedLibraries(options.ScopedLibraries);
             return base.OnOptionsSaving(options);
         }
@@ -125,7 +135,8 @@ namespace MediaInfoKeeper
             this.logger.Info($"PersistMediaInfoEnabled 设置为 {options.PersistMediaInfoEnabled}");
             this.logger.Info($"MediaInfoJsonRootFolder 设置为 {(string.IsNullOrEmpty(options.MediaInfoJsonRootFolder) ? "EMPTY" : options.MediaInfoJsonRootFolder)}");
             this.logger.Info($"DeleteMediaInfoJsonOnRemove 设置为 {options.DeleteMediaInfoJsonOnRemove}");
-            this.logger.Info($"ScopedLibraries 设置为 {(string.IsNullOrEmpty(options.ScopedLibraries) ? "EMPTY" : options.ScopedLibraries)}");
+            this.logger.Info($"CatchupLibraries 设置为 {(string.IsNullOrEmpty(options.CatchupLibraries) ? "EMPTY" : options.CatchupLibraries)}");
+            this.logger.Info($"ScheduledTaskLibraries 设置为 {(string.IsNullOrEmpty(options.ScheduledTaskLibraries) ? "EMPTY" : options.ScheduledTaskLibraries)}");
         }
 
         private string NormalizeScopedLibraries(string raw)
