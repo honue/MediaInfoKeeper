@@ -49,5 +49,9 @@ namespace MediaInfoKeeper.Configuration
         [Description("为空时，JSON 保存到媒体文件同目录。")]
         [Editor(typeof(EditorFolderPicker), typeof(EditorBase))]
         public string MediaInfoJsonRootFolder { get; set; } = string.Empty;
+
+
+        [DisplayName("GitHub")]
+        public string projectUrl { get; set; } = "https://github.com/honue/MediaInfoKeeper";
     }
 }

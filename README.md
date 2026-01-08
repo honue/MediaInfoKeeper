@@ -1,6 +1,27 @@
 ﻿MediaInfoKeeper
 ===============
 
+<p align="center">
+  <img src="Resources/ThumbImage.png" alt="MediaInfoKeeper" width="320" />
+</p>
+
+目录
+----
+
+- [安装](#安装)
+- [媒体信息保存流程](#媒体信息保存流程)
+- [保存规则](#保存规则)
+- [配置项](#配置项)
+- [计划任务](#计划任务)
+- [感谢](#感谢)
+
+安装
+----
+
+1. 下载 `MediaInfoKeeper.dll`：<https://github.com/honue/MediaInfoKeeper/releases>
+2. 放入 Emby 配置目录中的 `plugins` 目录。
+3. 重启 Emby 后在插件页面配置使用。
+
 媒体信息保存流程
 --------------
 
@@ -51,3 +72,9 @@ MediaInfoKeeper 的目标是把媒体信息保存为 JSON，在需要时快速�
 - MediaInfoKeeper - 批量提取媒体信息：对计划任务媒体库范围内的存量视频条目执行提取并写入 JSON。
 - MediaInfoKeeper - 最近条目提取媒体信息：对计划任务媒体库范围内的最近入库条目执行提取并写入 JSON（数量可配置）。
 - MediaInfoKeeper - 导出现有媒体信息：对计划任务媒体库范围内已有 MediaInfo 的条目导出 JSON，无 MediaInfo 则跳过。
+
+感谢
+----
+
+项目参考：<https://github.com/sjtuross/StrmAssistant>
+
