@@ -50,3 +50,4 @@ MediaInfoKeeper 的目标是把媒体信息保存为 JSON，在需要时快速�
 
 - MediaInfoKeeper - 批量提取媒体信息：对计划任务媒体库范围内的存量视频条目执行提取并写入 JSON。
 - MediaInfoKeeper - 最近条目提取媒体信息：对计划任务媒体库范围内的最近入库条目执行提取并写入 JSON（数量可配置）。
+- MediaInfoKeeper - 导出现有媒体信息：对计划任务媒体库范围内已有 MediaInfo 的条目导出 JSON，无 MediaInfo 则跳过。
