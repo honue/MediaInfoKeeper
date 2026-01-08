@@ -274,16 +274,35 @@ namespace MediaInfoKeeper
                         var parentPath = e.Item.ContainingFolderPath;
                         if (!string.IsNullOrEmpty(parentPath))
                         {
-                            var parentFolder = this.libraryManager.FindByPath(parentPath, true) as Folder;
-                            if (parentFolder != null)
+                            if (!this.fileSystem.DirectoryExists(parentPath))
                             {
-                                this.logger.Info($"扫描物理路径: {parentPath}");
-                                await parentFolder.ValidateChildren(null, CancellationToken.None, scanOptions, true)
-                                    .ConfigureAwait(false);
+                                this.logger.Info($"物理路径不存在，跳过扫描: {parentPath}");
                             }
                             else
                             {
-                                this.logger.Info($"未找到物理路径对应的文件夹项，跳过扫描: {parentPath}");
+                                var parentFolder = this.libraryManager.FindByPath(parentPath, true) as Folder;
+                                if (parentFolder != null)
+                                {
+                                    this.logger.Info($"刷新父级条目: {parentPath}");
+                                    try
+                                    {
+                                        var collectionFolders = (BaseItem[])this.libraryManager.GetCollectionFolders(parentFolder);
+                                        var libraryOptions = this.libraryManager.GetLibraryOptions(parentFolder);
+                                        await this.providerManager
+                                            .RefreshSingleItem(parentFolder, scanOptions, collectionFolders, libraryOptions, CancellationToken.None)
+                                            .ConfigureAwait(false);
+                                    }
+                                    catch (Exception refreshEx)
+                                    {
+                                        this.logger.Error($"刷新父级条目失败: {parentPath}");
+                                        this.logger.Error(refreshEx.Message);
+                                        this.logger.Debug(refreshEx.StackTrace);
+                                    }
+                                }
+                                else
+                                {
+                                    this.logger.Info($"未找到物理路径对应的文件夹项，跳过刷新: {parentPath}");
+                                }
                             }
                         }
                         else
