@@ -257,7 +257,39 @@ namespace MediaInfoKeeper
                     }
                     else
                     {
-                        this.logger.Info("JSON 恢复成功，跳过提取");
+                        // 恢复成功后扫描所在物理路径，确保库状态刷新。
+                        var itemPath = e.Item.Path ?? e.Item.ContainingFolderPath ?? e.Item.Id.ToString();
+                        this.logger.Info($"JSON 恢复成功，准备扫描物理路径 item: {itemPath}");
+                        var scanOptions = new MetadataRefreshOptions(new DirectoryService(this.logger, this.fileSystem))
+                        {
+                            EnableRemoteContentProbe = false,
+                            MetadataRefreshMode = MetadataRefreshMode.ValidationOnly,
+                            ReplaceAllMetadata = false,
+                            ImageRefreshMode = MetadataRefreshMode.ValidationOnly,
+                            ReplaceAllImages = false,
+                            EnableThumbnailImageExtraction = false,
+                            EnableSubtitleDownloading = false
+                        };
+
+                        var parentPath = e.Item.ContainingFolderPath;
+                        if (!string.IsNullOrEmpty(parentPath))
+                        {
+                            var parentFolder = this.libraryManager.FindByPath(parentPath, true) as Folder;
+                            if (parentFolder != null)
+                            {
+                                this.logger.Info($"扫描物理路径: {parentPath}");
+                                await parentFolder.ValidateChildren(null, CancellationToken.None, scanOptions, true)
+                                    .ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                this.logger.Info($"未找到物理路径对应的文件夹项，跳过扫描: {parentPath}");
+                            }
+                        }
+                        else
+                        {
+                            this.logger.Info($"未找到条目所在物理路径，跳过扫描 item: {itemPath}");
+                        }
                     }
                 }
                 else
