@@ -126,13 +126,13 @@ namespace MediaInfoKeeper.Services
                     }
 
                     this.jsonSerializer.SerializeToFile(mediaSourcesWithChapters, mediaInfoJsonPath);
-                    this.logger.Info($"MediaInfoKeeper {source} 保存成功: {mediaInfoJsonPath}");
+                    this.logger.Info($"{source} 保存成功: {mediaInfoJsonPath}");
 
                     return true;
                 }
                 catch (Exception e)
                 {
-                    this.logger.Error($"MediaInfoKeeper {source} 保存失败: {mediaInfoJsonPath}");
+                    this.logger.Error($"{source} 保存失败: {mediaInfoJsonPath}");
                     this.logger.Error(e.Message);
                     this.logger.Debug(e.StackTrace);
                 }
@@ -149,7 +149,7 @@ namespace MediaInfoKeeper.Services
 
             if (!Plugin.LibraryService.HasMediaInfo(workItem))
             {
-                this.logger.Info($"MediaInfoKeeper {source} 跳过保存 - 无 MediaInfo");
+                this.logger.Info($"{source} 跳过保存 - 无 MediaInfo");
                 return Task.FromResult(false);
             }
 
@@ -165,6 +165,7 @@ namespace MediaInfoKeeper.Services
 
             if (Plugin.LibraryService.HasMediaInfo(workItem))
             {
+                logger.Info($"{item.Path} 已存在媒体信息, 跳过恢复");
                 return true;
             }
 
@@ -218,16 +219,16 @@ namespace MediaInfoKeeper.Services
                             this.itemRepository.SaveChapters(item.InternalId, true, mediaSourceWithChapters.Chapters);
                         }
 
-                        this.logger.Info($"MediaInfoKeeper {source} 恢复成功: {mediaInfoJsonPath}");
+                        this.logger.Info($"{source} 恢复成功: {mediaInfoJsonPath}");
 
                         return true;
                     }
 
-                    this.logger.Info($"MediaInfoKeeper {source} 跳过恢复: {mediaInfoJsonPath}");
+                    this.logger.Info($"{source} 跳过恢复: {mediaInfoJsonPath}");
                 }
                 catch (Exception e)
                 {
-                    this.logger.Error($"MediaInfoKeeper {source} 恢复失败: {mediaInfoJsonPath}");
+                    this.logger.Error($"{source} 恢复失败: {mediaInfoJsonPath}");
                     this.logger.Error(e.Message);
                     this.logger.Debug(e.StackTrace);
                 }

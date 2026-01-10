@@ -68,74 +68,87 @@ namespace MediaInfoKeeper.Services
         public async Task<bool?> OrchestrateMediaInfoProcessAsync(BaseItem taskItem, string source,
             CancellationToken cancellationToken)
         {
+            var displayName = taskItem.Path ?? taskItem.Name;
+
             if (!IsItemInScope(taskItem))
             {
+                logger.Info($"跳过 不在库范围: {displayName}");
                 return null;
             }
 
             var persistMediaInfo = taskItem is Video && Plugin.Instance.Options.PersistMediaInfoEnabled;
             if (!persistMediaInfo)
             {
+                logger.Info($"跳过 未开启持久化或非视频: {displayName}");
                 return null;
             }
 
-            var filePath = taskItem.Path;
-            if (string.IsNullOrEmpty(filePath))
+            using (FfprobeGuard.Allow())
             {
-                return null;
-            }
-
-            var refreshOptions = Plugin.MediaInfoService.GetMediaInfoRefreshOptions();
-            var directoryService = refreshOptions.DirectoryService;
-
-            if (Uri.TryCreate(filePath, UriKind.Absolute, out var uri) && uri.IsAbsoluteUri &&
-                uri.Scheme == Uri.UriSchemeFile)
-            {
-                var file = directoryService.GetFile(filePath);
-                if (file?.Exists != true)
+                var filePath = taskItem.Path;
+                if (string.IsNullOrEmpty(filePath))
                 {
+                    logger.Info($"跳过 无路径: {displayName}");
                     return null;
                 }
-            }
 
-            var collectionFolders = (BaseItem[])this.libraryManager.GetCollectionFolders(taskItem);
-            var libraryOptions = this.libraryManager.GetLibraryOptions(taskItem);
+                var refreshOptions = Plugin.MediaInfoService.GetMediaInfoRefreshOptions();
+                var directoryService = refreshOptions.DirectoryService;
 
-            var dummyLibraryOptions = CopyLibraryOptions(libraryOptions);
-            dummyLibraryOptions.DisabledLocalMetadataReaders = new[] { "Nfo" };
-            dummyLibraryOptions.MetadataSavers = Array.Empty<string>();
-
-            foreach (var option in dummyLibraryOptions.TypeOptions)
-            {
-                option.MetadataFetchers = Array.Empty<string>();
-                option.ImageFetchers = Array.Empty<string>();
-            }
-
-            if (persistMediaInfo)
-            {
-                var deserializeResult = await Plugin.MediaInfoService
-                    .DeserializeMediaInfo(taskItem, directoryService, source, false)
-                    .ConfigureAwait(false);
-
-                if (deserializeResult)
+                if (Uri.TryCreate(filePath, UriKind.Absolute, out var uri) && uri.IsAbsoluteUri &&
+                    uri.Scheme == Uri.UriSchemeFile)
                 {
-                    return false;
+                    var file = directoryService.GetFile(filePath);
+                    if (file?.Exists != true)
+                    {
+                        logger.Info($"跳过 文件不存在: {displayName}");
+                        return null;
+                    }
                 }
-            }
 
-            taskItem.DateLastRefreshed = new DateTimeOffset();
+                var collectionFolders = (BaseItem[])this.libraryManager.GetCollectionFolders(taskItem);
+                var libraryOptions = this.libraryManager.GetLibraryOptions(taskItem);
 
-            await this.providerManager
-                .RefreshSingleItem(taskItem, refreshOptions, collectionFolders, dummyLibraryOptions, cancellationToken)
-                .ConfigureAwait(false);
+                var dummyLibraryOptions = CopyLibraryOptions(libraryOptions);
+                dummyLibraryOptions.DisabledLocalMetadataReaders = new[] { "Nfo" };
+                dummyLibraryOptions.MetadataSavers = Array.Empty<string>();
 
-            if (persistMediaInfo)
-            {
-                await Plugin.MediaInfoService.SerializeMediaInfo(taskItem.InternalId, directoryService, true, source)
+                foreach (var option in dummyLibraryOptions.TypeOptions)
+                {
+                    option.MetadataFetchers = Array.Empty<string>();
+                    option.ImageFetchers = Array.Empty<string>();
+                }
+
+                if (persistMediaInfo)
+                {
+                    var deserializeResult = await Plugin.MediaInfoService
+                        .DeserializeMediaInfo(taskItem, directoryService, source, false)
+                        .ConfigureAwait(false);
+
+                    if (deserializeResult)
+                    {
+                        logger.Info($"命中 JSON 恢复: {displayName}");
+                        return false;
+                    }
+                }
+
+                logger.Info($"刷新开始: {displayName}");
+                taskItem.DateLastRefreshed = new DateTimeOffset();
+
+                await this.providerManager
+                    .RefreshSingleItem(taskItem, refreshOptions, collectionFolders, dummyLibraryOptions, cancellationToken)
                     .ConfigureAwait(false);
-            }
 
-            return true;
+                if (persistMediaInfo)
+                {
+                    logger.Info($"写入 JSON: {displayName}");
+                    await Plugin.MediaInfoService.SerializeMediaInfo(taskItem.InternalId, directoryService, true, source)
+                        .ConfigureAwait(false);
+                }
+
+                logger.Info($"完成: {displayName}");
+                return true;
+            }
         }
 
         /// <summary>根据配置判断条目是否属于选定媒体库。</summary>
@@ -209,12 +222,12 @@ namespace MediaInfoKeeper.Services
                 CacheImages = sourceOptions.CacheImages,
                 PathInfos =
                     sourceOptions.PathInfos?.Select(p => new MediaPathInfo
-                        {
-                            Path = p.Path,
-                            NetworkPath = p.NetworkPath,
-                            Username = p.Username,
-                            Password = p.Password
-                        })
+                    {
+                        Path = p.Path,
+                        NetworkPath = p.NetworkPath,
+                        Username = p.Username,
+                        Password = p.Password
+                    })
                         .ToArray() ?? Array.Empty<MediaPathInfo>(),
                 IgnoreHiddenFiles = sourceOptions.IgnoreHiddenFiles,
                 IgnoreFileExtensions =
@@ -269,16 +282,16 @@ namespace MediaInfoKeeper.Services
                 ThumbnailImagesIntervalSeconds = sourceOptions.ThumbnailImagesIntervalSeconds,
                 SampleIgnoreSize = sourceOptions.SampleIgnoreSize,
                 TypeOptions = sourceOptions.TypeOptions.Select(t => new TypeOptions
-                    {
-                        Type = t.Type,
-                        MetadataFetchers = t.MetadataFetchers?.Clone() as string[] ?? Array.Empty<string>(),
-                        MetadataFetcherOrder = t.MetadataFetcherOrder?.Clone() as string[] ?? Array.Empty<string>(),
-                        ImageFetchers = t.ImageFetchers?.Clone() as string[] ?? Array.Empty<string>(),
-                        ImageFetcherOrder = t.ImageFetcherOrder?.Clone() as string[] ?? Array.Empty<string>(),
-                        ImageOptions = t.ImageOptions?.Select(i =>
-                                new ImageOption { Type = i.Type, Limit = i.Limit, MinWidth = i.MinWidth })
+                {
+                    Type = t.Type,
+                    MetadataFetchers = t.MetadataFetchers?.Clone() as string[] ?? Array.Empty<string>(),
+                    MetadataFetcherOrder = t.MetadataFetcherOrder?.Clone() as string[] ?? Array.Empty<string>(),
+                    ImageFetchers = t.ImageFetchers?.Clone() as string[] ?? Array.Empty<string>(),
+                    ImageFetcherOrder = t.ImageFetcherOrder?.Clone() as string[] ?? Array.Empty<string>(),
+                    ImageOptions = t.ImageOptions?.Select(i =>
+                            new ImageOption { Type = i.Type, Limit = i.Limit, MinWidth = i.MinWidth })
                             .ToArray() ?? Array.Empty<ImageOption>()
-                    })
+                })
                     .ToArray()
             };
 

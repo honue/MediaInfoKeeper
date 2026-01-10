@@ -32,7 +32,7 @@ namespace MediaInfoKeeper.ScheduledTask
             if (total == 0)
             {
                 progress.Report(100.0);
-                this.logger.Info("计划任务完成(0 个条目)");
+                this.logger.Info("计划任务完成，条目数 0");
                 return;
             }
 
@@ -47,7 +47,8 @@ namespace MediaInfoKeeper.ScheduledTask
 
                 try
                 {
-                    await Plugin.LibraryService
+                    // this.logger.Info($"处理 {item.Path ?? item.Name}");
+                    var result = await Plugin.LibraryService
                         .OrchestrateMediaInfoProcessAsync(item, "Recent Scheduled Task", cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -72,9 +73,9 @@ namespace MediaInfoKeeper.ScheduledTask
 
         public string Key => "MediaInfoKeeperExtractRecentMediaInfoTask";
 
-        public string Name => "最近条目提取媒体信息";
+        public string Name => "补全最近入库的媒体信息";
 
-        public string Description => "对全局最近入库条目提取媒体信息并写入 JSON。";
+        public string Description => "对全局最近入库条目，补全媒体信息并写入 JSON。";
 
         public string Category => Plugin.PluginName;
 
@@ -89,7 +90,7 @@ namespace MediaInfoKeeper.ScheduledTask
             var scopePaths = GetScopedLibraryPaths(out var hasScope);
             if (hasScope && !scopePaths.Any())
             {
-                this.logger.Info("计划任务条目数 0(范围内未匹配到媒体库)");
+                this.logger.Info("计划任务条目数 0，范围内未匹配到媒体库");
                 return new List<BaseItem>();
             }
 

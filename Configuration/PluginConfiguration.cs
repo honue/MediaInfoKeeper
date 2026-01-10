@@ -33,6 +33,10 @@ namespace MediaInfoKeeper.Configuration
         [Description("启用后，条目移除时删除已持久化的 JSON。")]
         public bool DeleteMediaInfoJsonOnRemove { get; set; } = false;
 
+        [DisplayName("禁用 Emby 系统 ffprobe")]
+        [Description("开启后阻止 Emby 自带的 ffprobe 运行，仅插件内部允许调用。")]
+        public bool DisableSystemFfprobe { get; set; } = true;
+
         [DisplayName("计划任务媒体库")]
         [Description("用于计划任务范围；留空表示全部。")]
         [EditMultilSelect]

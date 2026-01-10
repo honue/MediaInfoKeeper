@@ -72,9 +72,9 @@ namespace MediaInfoKeeper.ScheduledTask
 
         public string Key => "MediaInfoKeeperExtractMediaInfoTask";
 
-        public string Name => "批量提取媒体信息";
+        public string Name => "批量补全媒体信息";
 
-        public string Description => "对选定媒体库的已存在条目，提取媒体信息并写入 JSON。";
+        public string Description => "对选定媒体库的所有剧集，补全媒体信息并写入 JSON。";
 
         public string Category => Plugin.PluginName;
 

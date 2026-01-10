@@ -59,6 +59,8 @@ namespace MediaInfoKeeper
             this.itemRepository = itemRepository;
             this.fileSystem = fileSystem;
 
+            FfprobeGuard.Initialize(this.logger, this.Options.DisableSystemFfprobe);
+
             this.currentPersistMediaInfo = this.Options.PersistMediaInfoEnabled;
 
             LibraryService = new LibraryService(libraryManager, providerManager, fileSystem);
@@ -137,6 +139,8 @@ namespace MediaInfoKeeper
             this.logger.Info($"DeleteMediaInfoJsonOnRemove 设置为 {options.DeleteMediaInfoJsonOnRemove}");
             this.logger.Info($"CatchupLibraries 设置为 {(string.IsNullOrEmpty(options.CatchupLibraries) ? "EMPTY" : options.CatchupLibraries)}");
             this.logger.Info($"ScheduledTaskLibraries 设置为 {(string.IsNullOrEmpty(options.ScheduledTaskLibraries) ? "EMPTY" : options.ScheduledTaskLibraries)}");
+
+            FfprobeGuard.Configure(options.DisableSystemFfprobe);
         }
 
         private string NormalizeScopedLibraries(string raw)
@@ -191,6 +195,7 @@ namespace MediaInfoKeeper
         /// <summary>处理新入库条目，按配置执行持久化或恢复。</summary>
         private async void OnItemAdded(object sender, ItemChangeEventArgs e)
         {
+
             try
             {
                 this.logger.Info($"{e.Item.Path} 新增剧集事件");
@@ -246,11 +251,12 @@ namespace MediaInfoKeeper
 
                         // 触发一次刷新以提取 MediaInfo。
                         e.Item.DateLastRefreshed = new DateTimeOffset();
-
-                        await this.providerManager
-                            .RefreshSingleItem(e.Item, refreshOptions, collectionFolders, dummyLibraryOptions, CancellationToken.None)
-                            .ConfigureAwait(false);
-
+                        using (FfprobeGuard.Allow())
+                        {
+                            await this.providerManager
+                                .RefreshSingleItem(e.Item, refreshOptions, collectionFolders, dummyLibraryOptions, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
                         // 提取完成后写入 JSON。
                         this.logger.Info("MediaInfo 提取完成，写入 JSON");
                         _ = MediaInfoService.SerializeMediaInfo(e.Item.InternalId, directoryService, true, "OnItemAdded WriteNewJson");
@@ -288,9 +294,12 @@ namespace MediaInfoKeeper
                                     {
                                         var collectionFolders = (BaseItem[])this.libraryManager.GetCollectionFolders(parentFolder);
                                         var libraryOptions = this.libraryManager.GetLibraryOptions(parentFolder);
-                                        await this.providerManager
+                                        using (FfprobeGuard.Allow())
+                                        {
+                                            await this.providerManager
                                             .RefreshSingleItem(parentFolder, scanOptions, collectionFolders, libraryOptions, CancellationToken.None)
                                             .ConfigureAwait(false);
+                                        }
                                     }
                                     catch (Exception refreshEx)
                                     {
@@ -326,6 +335,7 @@ namespace MediaInfoKeeper
             }
         }
 
+
         /// <summary>条目移除且非恢复模式时，删除已持久化的 JSON。</summary>
         private void OnItemRemoved(object sender, ItemChangeEventArgs e)
         {
@@ -347,6 +357,7 @@ namespace MediaInfoKeeper
             }
 
             var directoryService = new DirectoryService(this.logger, this.fileSystem);
+            logger.Info("同步删除 媒体信息 Json");
             MediaInfoService.DeleteMediaInfoJson(e.Item, directoryService, "Item Removed Event");
         }
     }
