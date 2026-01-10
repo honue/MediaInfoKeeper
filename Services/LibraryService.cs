@@ -84,6 +84,7 @@ namespace MediaInfoKeeper.Services
             }
 
             using (FfprobeGuard.Allow())
+            using (MetadataProvidersGuard.Allow())
             {
                 var filePath = taskItem.Path;
                 if (string.IsNullOrEmpty(filePath))

@@ -38,6 +38,9 @@ namespace MediaInfoKeeper
         private readonly IItemRepository itemRepository;
         private readonly IFileSystem fileSystem;
 
+        internal static IProviderManager ProviderManager { get; private set; }
+        internal static IFileSystem FileSystem { get; private set; }
+
         private bool currentPersistMediaInfo;
 
         /// <summary>初始化插件并注册库事件处理。</summary>
@@ -58,8 +61,11 @@ namespace MediaInfoKeeper
             this.providerManager = providerManager;
             this.itemRepository = itemRepository;
             this.fileSystem = fileSystem;
+            ProviderManager = providerManager;
+            FileSystem = fileSystem;
 
             FfprobeGuard.Initialize(this.logger, this.Options.DisableSystemFfprobe);
+            MetadataProvidersGuard.Initialize(this.logger, this.Options.DisableSystemMetadataRefresh);
 
             this.currentPersistMediaInfo = this.Options.PersistMediaInfoEnabled;
 
@@ -109,6 +115,7 @@ namespace MediaInfoKeeper
             }
 
             options.LibraryList = list;
+            options.LibraryScope.LibraryList = list;
             return base.OnBeforeShowUI(options);
         }
 

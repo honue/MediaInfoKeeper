@@ -35,19 +35,20 @@ namespace MediaInfoKeeper.Services
                 var mediaEncoding = Assembly.Load("Emby.Server.MediaEncoding");
                 if (mediaEncoding == null)
                 {
-                    logger.Warn("MediaInfoKeeper ffprobe guard init skipped: Emby.Server.MediaEncoding not found");
+                    logger.Warn("ffprobe guard init skipped: Emby.Server.MediaEncoding not found");
                     return;
                 }
 
                 var mediaProbeManager = mediaEncoding.GetType("Emby.Server.MediaEncoding.Probing.MediaProbeManager");
                 if (mediaProbeManager == null)
                 {
-                    logger.Warn("MediaInfoKeeper ffprobe guard init skipped: MediaProbeManager type not found");
+                    logger.Warn("ffprobe guard init skipped: MediaProbeManager type not found");
                     return;
                 }
 
                 // Resolve targets before creating Harmony so we can log candidate signatures
-                runFfProcess = FindMethod(mediaProbeManager, "RunFfProcess");
+                runFfProcess = ResolveRunFfProcess(mediaEncoding, mediaProbeManager) ??
+                               FindMethod(mediaProbeManager, "RunFfProcess");
 
                 var processRun = Assembly.Load("Emby.ProcessRun");
                 var processResult = processRun?.GetType("Emby.ProcessRun.Common.ProcessResult");
@@ -58,11 +59,11 @@ namespace MediaInfoKeeper.Services
 
                 if (runFfProcess == null || emptyResult == null)
                 {
-                    logger.Warn("MediaInfoKeeper ffprobe guard init failed: target method not found or unsupported return type");
+                    logger.Warn("ffprobe guard init failed: target method not found or unsupported return type");
                     return;
                 }
 
-                logger.Info($"MediaInfoKeeper ffprobe guard target: {runFfProcess.DeclaringType?.FullName}.{runFfProcess.Name}({string.Join(",", runFfProcess.GetParameters().Select(p => p.ParameterType.Name))}) -> {runFfProcess.ReturnType?.FullName}");
+                logger.Info($"ffprobe guard target: {runFfProcess.DeclaringType?.FullName}.{runFfProcess.Name}({string.Join(",", runFfProcess.GetParameters().Select(p => p.ParameterType.Name))}) -> {runFfProcess.ReturnType?.FullName}");
 
                 harmony = new Harmony("mediainfokeeper.ffprobe");
 
@@ -74,7 +75,7 @@ namespace MediaInfoKeeper.Services
                 }
                 catch (Exception patchEx)
                 {
-                    logger.Error("MediaInfoKeeper ffprobe guard patch failed");
+                    logger.Error("ffprobe guard patch failed");
                     logger.Error(patchEx.Message);
                     logger.Error(patchEx.ToString());
                     harmony = null;
@@ -82,23 +83,23 @@ namespace MediaInfoKeeper.Services
                     return;
                 }
 
-                logger.Info("MediaInfoKeeper ffprobe guard installed");
+                logger.Info("ffprobe guard installed");
             }
             catch (Exception e)
             {
-                logger.Error("MediaInfoKeeper ffprobe guard init failed");
+                logger.Error("ffprobe guard init failed");
                 logger.Error(e.Message);
                 logger.Error(e.ToString());
                 harmony = null;
                 isEnabled = false;
-                logger.Warn("MediaInfoKeeper ffprobe guard disabled due to initialization failure; ffprobe will not be intercepted.");
+                logger.Warn("ffprobe guard disabled due to initialization failure; ffprobe will not be intercepted.");
             }
         }
 
         public static void Configure(bool disableSystemFfprobe)
         {
             isEnabled = disableSystemFfprobe;
-            logger?.Info("MediaInfoKeeper ffprobe guard " + (isEnabled ? "enabled" : "disabled"));
+            logger?.Info("ffprobe guard " + (isEnabled ? "enabled" : "disabled"));
         }
 
         /// <summary>
@@ -120,12 +121,12 @@ namespace MediaInfoKeeper.Services
 
             if (GuardCount.Value == 0)
             {
-                logger?.Info($"ffprobe 拦截: {__1} {__2}");
+                logger?.Info($"拦截 ffprobe {__1} {__2}");
                 __result = emptyResult;
                 return false;
             }
 
-            logger?.Info($"ffprobe 允许执行: {__1} {__2}");
+            logger?.Info($"允许执行 ffprobe {__1} {__2}");
             __3 = Math.Max(__3, 60000);
             return true;
         }
@@ -214,6 +215,32 @@ namespace MediaInfoKeeper.Services
             }
 
             return methodInfo;
+        }
+
+        private static MethodInfo ResolveRunFfProcess(Assembly mediaEncoding, Type mediaProbeManager)
+        {
+            try
+            {
+                var ffRunType = mediaEncoding
+                    .GetTypes()
+                    .FirstOrDefault(t => string.Equals(t.Name, "FfRunType", StringComparison.Ordinal));
+
+                var paramTypes = ffRunType != null
+                    ? new[] { ffRunType, typeof(string), typeof(string), typeof(int), typeof(CancellationToken) }
+                    : null;
+
+                return paramTypes == null
+                    ? null
+                    : mediaProbeManager.GetMethod("RunFfProcess",
+                        BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        paramTypes,
+                        null);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static PropertyInfo FindProperty(Type type, string propertyName)

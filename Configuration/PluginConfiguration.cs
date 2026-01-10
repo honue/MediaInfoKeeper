@@ -2,7 +2,6 @@
 using System.ComponentModel;
 using Emby.Web.GenericEdit;
 using Emby.Web.GenericEdit.Common;
-using Emby.Web.GenericEdit.Editors;
 using MediaBrowser.Model.Attributes;
 
 namespace MediaInfoKeeper.Configuration
@@ -16,43 +15,48 @@ namespace MediaInfoKeeper.Configuration
         [Browsable(false)]
         public IEnumerable<EditorSelectOption> LibraryList { get; set; }
 
-        [DisplayName("追更媒体库")]
-        [Description("用于入库触发与删除 JSON 逻辑；留空表示全部。")]
-        [EditMultilSelect]
-        [SelectItemsSource(nameof(LibraryList))]
-        public string CatchupLibraries { get; set; } = string.Empty;
+        [DisplayName("全局设置")]
+        public GeneralOptions General { get; set; } = new GeneralOptions();
+
+        [DisplayName("媒体库范围")]
+        public LibraryScopeOptions LibraryScope { get; set; } = new LibraryScopeOptions();
+
+        [DisplayName("计划任务参数")]
+        public RecentTaskOptions RecentTasks { get; set; } = new RecentTaskOptions();
 
         [Browsable(false)]
         public string ScopedLibraries { get; set; } = string.Empty;
 
-        [DisplayName("启用 MediaInfo")]
-        [Description("启用后优先从 JSON 恢复，提取后再写入 JSON。")]
-        public bool PersistMediaInfoEnabled { get; set; } = true;
+        // 兼容旧属性访问
+        [Browsable(false)]
+        public string CatchupLibraries { get => LibraryScope.CatchupLibraries; set => LibraryScope.CatchupLibraries = value; }
 
-        [DisplayName("条目移除时删除 JSON")]
-        [Description("启用后，条目移除时删除已持久化的 JSON。")]
-        public bool DeleteMediaInfoJsonOnRemove { get; set; } = false;
+        [Browsable(false)]
+        public bool PersistMediaInfoEnabled { get => General.PersistMediaInfoEnabled; set => General.PersistMediaInfoEnabled = value; }
 
-        [DisplayName("禁用 Emby 系统 ffprobe")]
-        [Description("开启后阻止 Emby 自带的 ffprobe 运行，仅插件内部允许调用。")]
-        public bool DisableSystemFfprobe { get; set; } = true;
+        [Browsable(false)]
+        public bool DeleteMediaInfoJsonOnRemove { get => General.DeleteMediaInfoJsonOnRemove; set => General.DeleteMediaInfoJsonOnRemove = value; }
 
-        [DisplayName("计划任务媒体库")]
-        [Description("用于计划任务范围；留空表示全部。")]
-        [EditMultilSelect]
-        [SelectItemsSource(nameof(LibraryList))]
-        public string ScheduledTaskLibraries { get; set; } = string.Empty;
+        [Browsable(false)]
+        public bool DisableSystemFfprobe { get => General.DisableSystemFfprobe; set => General.DisableSystemFfprobe = value; }
 
-        [DisplayName("最近入库条目数量")]
-        [Description("用于“最近条目提取媒体信息”计划任务。默认 100。")]
-        [MinValue(1)]
-        [MaxValue(1000)]
-        public int RecentItemsLimit { get; set; } = 100;
+        [Browsable(false)]
+        public bool DisableSystemMetadataRefresh { get => General.DisableSystemMetadataRefresh; set => General.DisableSystemMetadataRefresh = value; }
 
-        [DisplayName("MediaInfo JSON 存储根目录")]
-        [Description("为空时，JSON 保存到媒体文件同目录。")]
-        [Editor(typeof(EditorFolderPicker), typeof(EditorBase))]
-        public string MediaInfoJsonRootFolder { get; set; } = string.Empty;
+        [Browsable(false)]
+        public string ScheduledTaskLibraries { get => LibraryScope.ScheduledTaskLibraries; set => LibraryScope.ScheduledTaskLibraries = value; }
+
+        [Browsable(false)]
+        public int RecentItemsLimit { get => RecentTasks.RecentItemsLimit; set => RecentTasks.RecentItemsLimit = value; }
+
+        [Browsable(false)]
+        public int RecentItemsDays { get => RecentTasks.RecentItemsDays; set => RecentTasks.RecentItemsDays = value; }
+
+        [Browsable(false)]
+        public string RefreshMetadataMode { get => RecentTasks.RefreshMetadataMode; set => RecentTasks.RefreshMetadataMode = value; }
+
+        [Browsable(false)]
+        public string MediaInfoJsonRootFolder { get => General.MediaInfoJsonRootFolder; set => General.MediaInfoJsonRootFolder = value; }
 
 
         [DisplayName("GitHub")]
