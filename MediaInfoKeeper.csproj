@@ -4,9 +4,9 @@
     <Description>MediaInfoKeeper Emby plugin</Description>
     <PackageTags>emby;plugin;pms;media;server;</PackageTags>
     <BaseOutputPath>Build\bin\</BaseOutputPath>
-    <AssemblyVersion>1.2.0.0</AssemblyVersion>
-    <FileVersion>1.2.0.0</FileVersion>
-    <Version>1.2.0</Version>
+    <AssemblyVersion>1.3.0.0</AssemblyVersion>
+    <FileVersion>1.3.0.0</FileVersion>
+    <Version>1.3.0</Version>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>
@@ -26,9 +26,7 @@
     <PropertyGroup>
       <HarmonyPackagePath>$(NuGetPackageRoot)lib.harmony\2.4.1\lib\net5.0\0Harmony.dll</HarmonyPackagePath>
     </PropertyGroup>
-    <Copy SourceFiles="$(HarmonyPackagePath)"
-          DestinationFolder="$(TargetDir)"
-          Condition="Exists('$(HarmonyPackagePath)')" />
+    <Copy SourceFiles="$(HarmonyPackagePath)" DestinationFolder="$(TargetDir)" Condition="Exists('$(HarmonyPackagePath)')" />
   </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

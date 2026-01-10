@@ -17,7 +17,7 @@
 
 安装
 ----
-
+支持Emby 4.9.1.80 版本，4.8 不支持，我没做兼容处理。
 1. 下载 `MediaInfoKeeper.dll`：<https://github.com/honue/MediaInfoKeeper/releases>
 2. 放入 Emby 配置目录中的 `plugins` 目录。
 3. 重启 Emby 后在插件页面配置使用。

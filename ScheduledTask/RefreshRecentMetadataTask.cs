@@ -66,6 +66,11 @@ namespace MediaInfoKeeper.ScheduledTask
                             .RefreshSingleItem(item, options, collectionFolders, libraryOptions, cancellationToken)
                             .ConfigureAwait(false);
                     }
+
+                    var directoryService = new DirectoryService(this.logger, Plugin.FileSystem);
+                    await Plugin.MediaInfoService
+                        .DeserializeMediaInfo(item, directoryService, "Recent Metadata Task Restore", true)
+                        .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -90,7 +95,7 @@ namespace MediaInfoKeeper.ScheduledTask
 
         public string Name => "刷新最近入库的元数据";
 
-        public string Description => "按配置范围刷新最近入库条目的元数据，可选覆盖或补全。";
+        public string Description => "按配置范围刷新最近入库条目的元数据，可选覆盖或补全。随后会重新尝试使用Json恢复媒体信息";
 
         public string Category => Plugin.PluginName;
 
