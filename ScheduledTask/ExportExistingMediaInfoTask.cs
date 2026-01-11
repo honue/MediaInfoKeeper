@@ -22,6 +22,13 @@ namespace MediaInfoKeeper.ScheduledTask
             this.logger = logManager.GetLogger(Plugin.PluginName);
             this.libraryManager = libraryManager;
         }
+        public string Key => "MediaInfoKeeperExportExistingMediaInfoTask";
+
+        public string Name => "导出媒体信息（范围内）";
+
+        public string Description => "对计划任务范围内已存在 MediaInfo 的条目导出 JSON，无 MediaInfo 则跳过。";
+
+        public string Category => Plugin.PluginName;
 
         public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
         {
@@ -76,14 +83,6 @@ namespace MediaInfoKeeper.ScheduledTask
 
             this.logger.Info("计划任务完成");
         }
-
-        public string Key => "MediaInfoKeeperExportExistingMediaInfoTask";
-
-        public string Name => "导出所有媒体信息 JSON";
-
-        public string Description => "对计划任务媒体库范围内已存在 MediaInfo 的条目导出 JSON，无 MediaInfo 则跳过。";
-
-        public string Category => Plugin.PluginName;
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {

@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using MediaInfoKeeper.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
@@ -60,96 +57,6 @@ namespace MediaInfoKeeper.Services
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// 根据配置与条目状态编排恢复、刷新与持久化流程。
-        /// </summary>
-        public async Task<bool?> OrchestrateMediaInfoProcessAsync(BaseItem taskItem, string source,
-            CancellationToken cancellationToken)
-        {
-            var displayName = taskItem.Path ?? taskItem.Name;
-
-            if (!IsItemInScope(taskItem))
-            {
-                logger.Info($"跳过 不在库范围: {displayName}");
-                return null;
-            }
-
-            var persistMediaInfo = taskItem is Video && Plugin.Instance.Options.General.PersistMediaInfoEnabled;
-            if (!persistMediaInfo)
-            {
-                logger.Info($"跳过 未开启持久化或非视频: {displayName}");
-                return null;
-            }
-
-            using (FfprobeGuard.Allow())
-            using (MetadataProvidersGuard.Allow())
-            {
-                var filePath = taskItem.Path;
-                if (string.IsNullOrEmpty(filePath))
-                {
-                    logger.Info($"跳过 无路径: {displayName}");
-                    return null;
-                }
-
-                var refreshOptions = Plugin.MediaInfoService.GetMediaInfoRefreshOptions();
-                var directoryService = refreshOptions.DirectoryService;
-
-                if (Uri.TryCreate(filePath, UriKind.Absolute, out var uri) && uri.IsAbsoluteUri &&
-                    uri.Scheme == Uri.UriSchemeFile)
-                {
-                    var file = directoryService.GetFile(filePath);
-                    if (file?.Exists != true)
-                    {
-                        logger.Info($"跳过 文件不存在: {displayName}");
-                        return null;
-                    }
-                }
-
-                var collectionFolders = (BaseItem[])this.libraryManager.GetCollectionFolders(taskItem);
-                var libraryOptions = this.libraryManager.GetLibraryOptions(taskItem);
-
-                var dummyLibraryOptions = CopyLibraryOptions(libraryOptions);
-                dummyLibraryOptions.DisabledLocalMetadataReaders = new[] { "Nfo" };
-                dummyLibraryOptions.MetadataSavers = Array.Empty<string>();
-
-                foreach (var option in dummyLibraryOptions.TypeOptions)
-                {
-                    option.MetadataFetchers = Array.Empty<string>();
-                    option.ImageFetchers = Array.Empty<string>();
-                }
-
-                if (persistMediaInfo)
-                {
-                    var deserializeResult = await Plugin.MediaInfoService
-                        .DeserializeMediaInfo(taskItem, directoryService, source, false)
-                        .ConfigureAwait(false);
-
-                    if (deserializeResult)
-                    {
-                        logger.Info($"命中 JSON 恢复: {displayName}");
-                        return false;
-                    }
-                }
-
-                logger.Info($"刷新开始: {displayName}");
-                taskItem.DateLastRefreshed = new DateTimeOffset();
-
-                await this.providerManager
-                    .RefreshSingleItem(taskItem, refreshOptions, collectionFolders, dummyLibraryOptions, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (persistMediaInfo)
-                {
-                    logger.Info($"写入 JSON: {displayName}");
-                    await Plugin.MediaInfoService.SerializeMediaInfo(taskItem.InternalId, directoryService, true, source)
-                        .ConfigureAwait(false);
-                }
-
-                logger.Info($"完成: {displayName}");
-                return true;
-            }
         }
 
         /// <summary>根据配置判断条目是否属于选定媒体库。</summary>

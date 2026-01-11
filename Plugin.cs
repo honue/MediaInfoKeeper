@@ -234,9 +234,10 @@ namespace MediaInfoKeeper
                 {
                     // 优先尝试从 JSON 恢复，减少首次提取耗时。
                     this.logger.Info("尝试从 JSON 恢复 MediaInfo");
-                    var restored = await MediaInfoService.DeserializeMediaInfo(e.Item, directoryService, "OnItemAdded", true).ConfigureAwait(false);
-
-                    if (!restored)
+                    var restoreResult = await MediaInfoService.DeserializeMediaInfo(e.Item, directoryService, "OnItemAdded", true).ConfigureAwait(false);
+                    
+                    // 如果不存在Json文件，则使用ffprobe 提取一次
+                    if (restoreResult == MediaInfoService.MediaInfoRestoreResult.Failed)
                     {
                         // 恢复失败时先触发媒体信息提取，再写入 JSON。
                         this.logger.Info("恢复失败，开始提取 MediaInfo");
@@ -269,9 +270,9 @@ namespace MediaInfoKeeper
                         this.logger.Info("MediaInfo 提取完成，写入 JSON");
                         _ = MediaInfoService.SerializeMediaInfo(e.Item.InternalId, directoryService, true, "OnItemAdded WriteNewJson");
                     }
-                    else
+                    // 使用Json媒体信息数据，恢复成功后扫描所在物理路径，确保库状态刷新。
+                    else if (restoreResult == MediaInfoService.MediaInfoRestoreResult.Restored)
                     {
-                        // 恢复成功后扫描所在物理路径，确保库状态刷新。
                         var itemPath = e.Item.Path ?? e.Item.ContainingFolderPath ?? e.Item.Id.ToString();
                         this.logger.Info($"JSON 恢复成功，准备扫描物理路径 item: {itemPath}");
                         var scanOptions = new MetadataRefreshOptions(new DirectoryService(this.logger, this.fileSystem))
@@ -328,9 +329,9 @@ namespace MediaInfoKeeper
                         }
                     }
                 }
+                // 已有 MediaInfo 时，直接用媒体信息覆盖写入 JSON，保持最新。
                 else
                 {
-                    // 已有 MediaInfo 时直接覆盖写入最新 JSON。
                     this.logger.Info("已有 MediaInfo，覆盖写入 JSON");
                     _ = MediaInfoService.SerializeMediaInfo(e.Item.InternalId, directoryService, true, "OnItemAdded Overwrite");
                 }
@@ -342,6 +343,7 @@ namespace MediaInfoKeeper
                 this.logger.Debug(ex.StackTrace);
             }
         }
+
 
 
         /// <summary>条目移除且非恢复模式时，删除已持久化的 JSON。</summary>

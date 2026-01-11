@@ -22,6 +22,13 @@ namespace MediaInfoKeeper.Services
     {
         private const string MediaInfoFileExtension = "-mediainfo.json";
 
+        public enum MediaInfoRestoreResult
+        {
+            Restored,
+            AlreadyExists,
+            Failed
+        }
+
         private readonly ILogger logger;
         private readonly ILibraryManager libraryManager;
         private readonly IItemRepository itemRepository;
@@ -158,7 +165,7 @@ namespace MediaInfoKeeper.Services
         }
 
         /// <summary>从 JSON 恢复 MediaInfo，并在有效时更新条目。</summary>
-        public async Task<bool> DeserializeMediaInfo(BaseItem item, IDirectoryService directoryService, string source,
+        public async Task<MediaInfoRestoreResult> DeserializeMediaInfo(BaseItem item, IDirectoryService directoryService, string source,
             bool ignoreFileChange)
         {
             var workItem = this.libraryManager.GetItemById(item.InternalId);
@@ -166,7 +173,7 @@ namespace MediaInfoKeeper.Services
             if (Plugin.LibraryService.HasMediaInfo(workItem))
             {
                 logger.Info($"{item.Path} 已存在媒体信息, 跳过恢复");
-                return true;
+                return MediaInfoRestoreResult.AlreadyExists;
             }
 
             var mediaInfoJsonPath = GetMediaInfoJsonPath(item);
@@ -221,7 +228,7 @@ namespace MediaInfoKeeper.Services
 
                         this.logger.Info($"{source} 恢复成功: {mediaInfoJsonPath}");
 
-                        return true;
+                        return MediaInfoRestoreResult.Restored;
                     }
 
                     this.logger.Info($"{source} 跳过恢复: {mediaInfoJsonPath}");
@@ -234,7 +241,7 @@ namespace MediaInfoKeeper.Services
                 }
             }
 
-            return false;
+            return MediaInfoRestoreResult.Failed;
         }
 
         /// <summary>删除媒体条目的已持久化 JSON。</summary>

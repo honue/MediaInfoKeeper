@@ -25,6 +25,13 @@ namespace MediaInfoKeeper.ScheduledTask
             this.logger = logManager.GetLogger(Plugin.PluginName);
             this.libraryManager = libraryManager;
         }
+        public string Key => "MediaInfoKeeperRefreshRecentMetadataTask";
+
+        public string Name => "刷新媒体元数据（最近入库）";
+
+        public string Description => "全局媒体库范围内，刷新最近入库条目的元数据（可选覆盖或补全），之后会从 JSON 恢复媒体信息。";
+
+        public string Category => Plugin.PluginName;
 
         public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
         {
@@ -66,9 +73,11 @@ namespace MediaInfoKeeper.ScheduledTask
                             .RefreshSingleItem(item, options, collectionFolders, libraryOptions, cancellationToken)
                             .ConfigureAwait(false);
                     }
-
+                    // 刷新完元数据要重新从json恢复媒体信息，
+                    // 非strm会重新 ffprobe，但是没有allow所以会拦截，
+                    // strm会丢失信息，所以重新恢复
                     var directoryService = new DirectoryService(this.logger, Plugin.FileSystem);
-                    await Plugin.MediaInfoService
+                    _ = await Plugin.MediaInfoService
                         .DeserializeMediaInfo(item, directoryService, "Recent Metadata Task Restore", true)
                         .ConfigureAwait(false);
                 }
@@ -90,14 +99,6 @@ namespace MediaInfoKeeper.ScheduledTask
 
             this.logger.Info("最近条目刷新元数据计划任务完成");
         }
-
-        public string Key => "MediaInfoKeeperRefreshRecentMetadataTask";
-
-        public string Name => "刷新最近入库的元数据";
-
-        public string Description => "按配置范围刷新最近入库条目的元数据，可选覆盖或补全。随后会重新尝试使用Json恢复媒体信息";
-
-        public string Category => Plugin.PluginName;
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {
