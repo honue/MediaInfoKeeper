@@ -15,6 +15,7 @@ using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Drawing;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 
 namespace MediaInfoKeeper
@@ -93,6 +94,15 @@ namespace MediaInfoKeeper
         {
             var type = this.GetType();
             return type.Assembly.GetManifestResourceStream(type.Namespace + ".Resources.ThumbImage.png");
+        }
+
+        protected override void OnCreatePageInfo(PluginPageInfo pageInfo)
+        {
+            pageInfo.Name = "MediaInfoKeeper";
+            pageInfo.DisplayName = "MediaInfoKeeper";
+            pageInfo.MenuIcon = "video_settings";
+            pageInfo.EnableInMainMenu = true;
+            pageInfo.IsMainConfigPage = true;
         }
 
         protected override PluginConfiguration OnBeforeShowUI(PluginConfiguration options)
