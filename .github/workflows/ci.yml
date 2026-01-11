@@ -1,0 +1,31 @@
+name: Build MediaInfoKeeper
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '5.x'
+
+      - name: Restore
+        run: dotnet restore MediaInfoKeeper/MediaInfoKeeper.csproj
+
+      - name: Build
+        run: dotnet build MediaInfoKeeper/MediaInfoKeeper.csproj -c Release --no-restore
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MediaInfoKeeper
+          path: MediaInfoKeeper/Build/bin/Release/net5.0/MediaInfoKeeper.dll
