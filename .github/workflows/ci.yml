@@ -19,13 +19,13 @@ jobs:
           dotnet-version: '5.x'
 
       - name: Restore
-        run: dotnet restore MediaInfoKeeper/MediaInfoKeeper.csproj
+        run: dotnet restore MediaInfoKeeper.csproj
 
       - name: Build
-        run: dotnet build MediaInfoKeeper/MediaInfoKeeper.csproj -c Release --no-restore
+        run: dotnet build MediaInfoKeeper.csproj -c Release --no-restore
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: MediaInfoKeeper
-          path: MediaInfoKeeper/Build/bin/Release/net5.0/MediaInfoKeeper.dll
+          path: Build/bin/Release/net5.0/MediaInfoKeeper.dll
