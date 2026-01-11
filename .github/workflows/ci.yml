@@ -24,8 +24,9 @@ jobs:
       - name: Build
         run: dotnet build MediaInfoKeeper.csproj -c Release --no-restore
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
         with:
-          name: MediaInfoKeeper
-          path: Build/bin/Release/net5.0/MediaInfoKeeper.dll
+          name: MediaInfoKeeper ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: Build/bin/Release/net5.0/MediaInfoKeeper.dll
