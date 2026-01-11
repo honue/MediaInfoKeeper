@@ -22,13 +22,15 @@ namespace MediaInfoKeeper.Services
         private static MethodInfo instanceCanRefresh;
         private static ILogger logger;
         private static bool isEnabled;
+        private static bool logEnabled;
 
-        public static void Initialize(ILogger pluginLogger, bool disableSystemMetadata)
+        public static void Initialize(ILogger pluginLogger, bool disableSystemMetadata, bool enableLog)
         {
             if (harmony != null) return;
 
             logger = pluginLogger;
             isEnabled = disableSystemMetadata;
+            logEnabled = enableLog;
 
             try
             {
@@ -89,10 +91,14 @@ namespace MediaInfoKeeper.Services
             }
         }
 
-        public static void Configure(bool disableSystemMetadata)
+        public static void Configure(bool disableSystemMetadata, bool enableLog)
         {
             isEnabled = disableSystemMetadata;
-            logger?.Info("MetadataProvidersGuard " + (isEnabled ? "enabled" : "disabled"));
+            logEnabled = enableLog;
+            if (logEnabled)
+            {
+                logger?.Info("MetadataProvidersGuard " + (isEnabled ? "enabled" : "disabled"));
+            }
         }
 
         public static IDisposable Allow()
@@ -111,11 +117,17 @@ namespace MediaInfoKeeper.Services
             if (GuardCount.Value == 0)
             {
                 __result = false;
-                logger?.Info($"MetadataProvidersGuard 拦截 CanRefresh");
+                if (logEnabled)
+                {
+                    logger?.Info($"MetadataProvidersGuard 拦截 CanRefresh");
+                }
                 return false;
             }
             
-            logger?.Info($"MetadataProvidersGuard 放行 CanRefresh");
+            if (logEnabled)
+            {
+                logger?.Info($"MetadataProvidersGuard 放行 CanRefresh");
+            }
             return true;
         }
 

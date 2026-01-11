@@ -24,6 +24,10 @@ namespace MediaInfoKeeper.Configuration
         [Description("开启后阻止 Emby 默认的 CanRefresh 通过，仅插件内部允许调用。")]
         public bool DisableSystemMetadataRefresh { get; set; } = true;
 
+        [DisplayName("显示 MetadataProvidersGuard 日志")]
+        [Description("开启后记录 CanRefresh 拦截/放行日志，默认关闭。")]
+        public bool EnableMetadataProvidersGuardLog { get; set; } = false;
+
         [DisplayName("MediaInfo JSON 存储根目录")]
         [Description("为空时，JSON 保存到媒体文件同目录。填写后会用这个值，拼接媒体路径存储Json。")]
         [Editor(typeof(EditorFolderPicker), typeof(EditorBase))]

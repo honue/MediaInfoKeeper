@@ -66,7 +66,9 @@ namespace MediaInfoKeeper
             FileSystem = fileSystem;
 
             FfprobeGuard.Initialize(this.logger, this.Options.General.DisableSystemFfprobe);
-            MetadataProvidersGuard.Initialize(this.logger, this.Options.General.DisableSystemMetadataRefresh);
+            MetadataProvidersGuard.Initialize(this.logger,
+                this.Options.General.DisableSystemMetadataRefresh,
+                this.Options.General.EnableMetadataProvidersGuardLog);
 
             this.currentPersistMediaInfo = this.Options.General.PersistMediaInfoEnabled;
 
@@ -149,6 +151,8 @@ namespace MediaInfoKeeper
             this.logger.Info($"ScheduledTaskLibraries 设置为 {(string.IsNullOrEmpty(options.LibraryScope.ScheduledTaskLibraries) ? "EMPTY" : options.LibraryScope.ScheduledTaskLibraries)}");
 
             FfprobeGuard.Configure(options.General.DisableSystemFfprobe);
+            MetadataProvidersGuard.Configure(options.General.DisableSystemMetadataRefresh,
+                options.General.EnableMetadataProvidersGuardLog);
         }
 
         private string NormalizeScopedLibraries(string raw)
