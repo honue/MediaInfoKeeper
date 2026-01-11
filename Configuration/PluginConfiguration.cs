@@ -24,41 +24,6 @@ namespace MediaInfoKeeper.Configuration
         [DisplayName("计划任务参数")]
         public RecentTaskOptions RecentTasks { get; set; } = new RecentTaskOptions();
 
-        [Browsable(false)]
-        public string ScopedLibraries { get; set; } = string.Empty;
-
-        // 兼容旧属性访问
-        [Browsable(false)]
-        public string CatchupLibraries { get => LibraryScope.CatchupLibraries; set => LibraryScope.CatchupLibraries = value; }
-
-        [Browsable(false)]
-        public bool PersistMediaInfoEnabled { get => General.PersistMediaInfoEnabled; set => General.PersistMediaInfoEnabled = value; }
-
-        [Browsable(false)]
-        public bool DeleteMediaInfoJsonOnRemove { get => General.DeleteMediaInfoJsonOnRemove; set => General.DeleteMediaInfoJsonOnRemove = value; }
-
-        [Browsable(false)]
-        public bool DisableSystemFfprobe { get => General.DisableSystemFfprobe; set => General.DisableSystemFfprobe = value; }
-
-        [Browsable(false)]
-        public bool DisableSystemMetadataRefresh { get => General.DisableSystemMetadataRefresh; set => General.DisableSystemMetadataRefresh = value; }
-
-        [Browsable(false)]
-        public string ScheduledTaskLibraries { get => LibraryScope.ScheduledTaskLibraries; set => LibraryScope.ScheduledTaskLibraries = value; }
-
-        [Browsable(false)]
-        public int RecentItemsLimit { get => RecentTasks.RecentItemsLimit; set => RecentTasks.RecentItemsLimit = value; }
-
-        [Browsable(false)]
-        public int RecentItemsDays { get => RecentTasks.RecentItemsDays; set => RecentTasks.RecentItemsDays = value; }
-
-        [Browsable(false)]
-        public string RefreshMetadataMode { get => RecentTasks.RefreshMetadataMode; set => RecentTasks.RefreshMetadataMode = value; }
-
-        [Browsable(false)]
-        public string MediaInfoJsonRootFolder { get => General.MediaInfoJsonRootFolder; set => General.MediaInfoJsonRootFolder = value; }
-
-
         [DisplayName("GitHub")]
         public string projectUrl { get; set; } = "https://github.com/honue/MediaInfoKeeper";
     }

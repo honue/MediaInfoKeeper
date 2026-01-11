@@ -65,10 +65,10 @@ namespace MediaInfoKeeper
             ProviderManager = providerManager;
             FileSystem = fileSystem;
 
-            FfprobeGuard.Initialize(this.logger, this.Options.DisableSystemFfprobe);
-            MetadataProvidersGuard.Initialize(this.logger, this.Options.DisableSystemMetadataRefresh);
+            FfprobeGuard.Initialize(this.logger, this.Options.General.DisableSystemFfprobe);
+            MetadataProvidersGuard.Initialize(this.logger, this.Options.General.DisableSystemMetadataRefresh);
 
-            this.currentPersistMediaInfo = this.Options.PersistMediaInfoEnabled;
+            this.currentPersistMediaInfo = this.Options.General.PersistMediaInfoEnabled;
 
             LibraryService = new LibraryService(libraryManager, providerManager, fileSystem);
             MediaInfoService = new MediaInfoService(libraryManager, fileSystem, itemRepository, jsonSerializer);
@@ -131,33 +131,24 @@ namespace MediaInfoKeeper
 
         protected override bool OnOptionsSaving(PluginConfiguration options)
         {
-            if (string.IsNullOrWhiteSpace(options.CatchupLibraries) &&
-                string.IsNullOrWhiteSpace(options.ScheduledTaskLibraries) &&
-                !string.IsNullOrWhiteSpace(options.ScopedLibraries))
-            {
-                options.CatchupLibraries = options.ScopedLibraries;
-                options.ScheduledTaskLibraries = options.ScopedLibraries;
-            }
-
-            options.CatchupLibraries = NormalizeScopedLibraries(options.CatchupLibraries);
-            options.ScheduledTaskLibraries = NormalizeScopedLibraries(options.ScheduledTaskLibraries);
-            options.ScopedLibraries = NormalizeScopedLibraries(options.ScopedLibraries);
+            options.LibraryScope.CatchupLibraries = NormalizeScopedLibraries(options.LibraryScope.CatchupLibraries);
+            options.LibraryScope.ScheduledTaskLibraries = NormalizeScopedLibraries(options.LibraryScope.ScheduledTaskLibraries);
             return base.OnOptionsSaving(options);
         }
 
         /// <summary>应用配置变更并更新缓存标记。</summary>
         protected override void OnOptionsSaved(PluginConfiguration options)
         {
-            this.currentPersistMediaInfo = options.PersistMediaInfoEnabled;
+            this.currentPersistMediaInfo = options.General.PersistMediaInfoEnabled;
 
             this.logger.Info($"{this.Name} 配置已更新。");
-            this.logger.Info($"PersistMediaInfoEnabled 设置为 {options.PersistMediaInfoEnabled}");
-            this.logger.Info($"MediaInfoJsonRootFolder 设置为 {(string.IsNullOrEmpty(options.MediaInfoJsonRootFolder) ? "EMPTY" : options.MediaInfoJsonRootFolder)}");
-            this.logger.Info($"DeleteMediaInfoJsonOnRemove 设置为 {options.DeleteMediaInfoJsonOnRemove}");
-            this.logger.Info($"CatchupLibraries 设置为 {(string.IsNullOrEmpty(options.CatchupLibraries) ? "EMPTY" : options.CatchupLibraries)}");
-            this.logger.Info($"ScheduledTaskLibraries 设置为 {(string.IsNullOrEmpty(options.ScheduledTaskLibraries) ? "EMPTY" : options.ScheduledTaskLibraries)}");
+            this.logger.Info($"PersistMediaInfoEnabled 设置为 {options.General.PersistMediaInfoEnabled}");
+            this.logger.Info($"MediaInfoJsonRootFolder 设置为 {(string.IsNullOrEmpty(options.General.MediaInfoJsonRootFolder) ? "EMPTY" : options.General.MediaInfoJsonRootFolder)}");
+            this.logger.Info($"DeleteMediaInfoJsonOnRemove 设置为 {options.General.DeleteMediaInfoJsonOnRemove}");
+            this.logger.Info($"CatchupLibraries 设置为 {(string.IsNullOrEmpty(options.LibraryScope.CatchupLibraries) ? "EMPTY" : options.LibraryScope.CatchupLibraries)}");
+            this.logger.Info($"ScheduledTaskLibraries 设置为 {(string.IsNullOrEmpty(options.LibraryScope.ScheduledTaskLibraries) ? "EMPTY" : options.LibraryScope.ScheduledTaskLibraries)}");
 
-            FfprobeGuard.Configure(options.DisableSystemFfprobe);
+            FfprobeGuard.Configure(options.General.DisableSystemFfprobe);
         }
 
         private string NormalizeScopedLibraries(string raw)
@@ -358,7 +349,7 @@ namespace MediaInfoKeeper
         {
             this.logger.Info($"{e.Item.Path} 删除剧集事件");
             // 未开启删除开关时直接跳过。
-            if (!this.Options.DeleteMediaInfoJsonOnRemove || !this.Options.PersistMediaInfoEnabled)
+            if (!this.Options.General.DeleteMediaInfoJsonOnRemove || !this.Options.General.PersistMediaInfoEnabled)
             {
                 return;
             }

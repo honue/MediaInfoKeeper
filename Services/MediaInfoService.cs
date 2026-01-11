@@ -66,7 +66,7 @@ namespace MediaInfoKeeper.Services
         /// <summary>根据配置计算媒体条目的 JSON 保存路径。</summary>
         public static string GetMediaInfoJsonPath(BaseItem item)
         {
-            var jsonRootFolder = Plugin.Instance.Options.MediaInfoJsonRootFolder;
+            var jsonRootFolder = Plugin.Instance.Options.General.MediaInfoJsonRootFolder;
 
             var relativePath = item.ContainingFolderPath;
             if (!string.IsNullOrEmpty(jsonRootFolder) && Path.IsPathRooted(item.ContainingFolderPath))

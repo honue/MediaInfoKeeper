@@ -76,7 +76,7 @@ namespace MediaInfoKeeper.Services
                 return null;
             }
 
-            var persistMediaInfo = taskItem is Video && Plugin.Instance.Options.PersistMediaInfoEnabled;
+            var persistMediaInfo = taskItem is Video && Plugin.Instance.Options.General.PersistMediaInfoEnabled;
             if (!persistMediaInfo)
             {
                 logger.Info($"跳过 未开启持久化或非视频: {displayName}");
@@ -192,7 +192,7 @@ namespace MediaInfoKeeper.Services
 
         private HashSet<string> GetScopedLibraryKeys()
         {
-            var raw = Plugin.Instance.Options.CatchupLibraries;
+            var raw = Plugin.Instance.Options.LibraryScope.CatchupLibraries;
             if (string.IsNullOrWhiteSpace(raw))
             {
                 return new HashSet<string>(StringComparer.OrdinalIgnoreCase);

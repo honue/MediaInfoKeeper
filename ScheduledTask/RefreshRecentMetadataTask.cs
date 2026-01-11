@@ -106,7 +106,7 @@ namespace MediaInfoKeeper.ScheduledTask
 
         private List<BaseItem> FetchRecentItems()
         {
-            var limit = Math.Max(1, Plugin.Instance.Options.RecentItemsLimit);
+            var limit = Math.Max(1, Plugin.Instance.Options.RecentTasks.RecentItemsLimit);
 
             var query = new InternalItemsQuery
             {
@@ -115,8 +115,8 @@ namespace MediaInfoKeeper.ScheduledTask
                 MediaTypes = new[] { MediaType.Video }
             };
 
-            var cutoff = Plugin.Instance.Options.RecentItemsDays > 0
-                ? DateTime.UtcNow.AddDays(-Plugin.Instance.Options.RecentItemsDays)
+            var cutoff = Plugin.Instance.Options.RecentTasks.RecentItemsDays > 0
+                ? DateTime.UtcNow.AddDays(-Plugin.Instance.Options.RecentTasks.RecentItemsDays)
                 : (DateTime?)null;
 
             var items = this.libraryManager.GetItemList(query)
@@ -144,7 +144,7 @@ namespace MediaInfoKeeper.ScheduledTask
 
         private bool ShouldReplace()
         {
-            var mode = Plugin.Instance.Options.RefreshMetadataMode ?? string.Empty;
+            var mode = Plugin.Instance.Options.RecentTasks.RefreshMetadataMode ?? string.Empty;
             var tokens = mode.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             return tokens.Any(v => v.Equals("Replace", StringComparison.OrdinalIgnoreCase));
         }

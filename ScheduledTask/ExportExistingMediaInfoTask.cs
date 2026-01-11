@@ -121,7 +121,7 @@ namespace MediaInfoKeeper.ScheduledTask
 
         private List<string> GetScopedLibraryPaths(out bool hasScope)
         {
-            var scoped = Plugin.Instance.Options.ScheduledTaskLibraries ?? string.Empty;
+            var scoped = Plugin.Instance.Options.LibraryScope.ScheduledTaskLibraries ?? string.Empty;
             var tokens = new HashSet<string>(
                 scoped
                     .Split(new[] { ',', ';', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
