@@ -160,13 +160,8 @@ namespace MediaInfoKeeper.ScheduledTask
                 var libraryOptions = this.libraryManager.GetLibraryOptions(item);
 
                 var dummyLibraryOptions = LibraryService.CopyLibraryOptions(libraryOptions);
-                dummyLibraryOptions.DisabledLocalMetadataReaders = new[] { "Nfo" };
-                dummyLibraryOptions.MetadataSavers = Array.Empty<string>();
-
                 foreach (var option in dummyLibraryOptions.TypeOptions)
                 {
-                    option.MetadataFetchers = Array.Empty<string>();
-                    option.ImageFetchers = Array.Empty<string>();
                 }
 
                 var deserializeResult = await Plugin.MediaInfoService

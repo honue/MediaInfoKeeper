@@ -158,12 +158,6 @@ namespace MediaInfoKeeper.ScheduledTask
 
                 var dummyLibraryOptions = LibraryService.CopyLibraryOptions(libraryOptions);
 
-                foreach (var option in dummyLibraryOptions.TypeOptions)
-                {
-                    option.MetadataFetchers = Array.Empty<string>();
-                    option.ImageFetchers = Array.Empty<string>();
-                }
-
                 var deserializeResult = await Plugin.MediaInfoService
                     .DeserializeMediaInfo(item, directoryService, source, false)
                     .ConfigureAwait(false);
