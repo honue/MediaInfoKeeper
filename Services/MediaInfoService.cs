@@ -172,7 +172,6 @@ namespace MediaInfoKeeper.Services
 
             if (Plugin.LibraryService.HasMediaInfo(workItem))
             {
-                logger.Info($"{item.Path} 已存在媒体信息, 跳过恢复");
                 return MediaInfoRestoreResult.AlreadyExists;
             }
 

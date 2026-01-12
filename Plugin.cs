@@ -254,10 +254,19 @@ namespace MediaInfoKeeper
                         // 触发一次刷新以提取 MediaInfo。
                         e.Item.DateLastRefreshed = new DateTimeOffset();
                         using (FfprobeGuard.Allow())
+                        using (MetadataProvidersGuard.Allow())
                         {
                             await this.providerManager
                                 .RefreshSingleItem(e.Item, refreshOptions, collectionFolders, dummyLibraryOptions, CancellationToken.None)
                                 .ConfigureAwait(false);
+                            // 父级item也尝试刷新
+                            var parentPath = e.Item.ContainingFolderPath;
+                            var parentFolder = this.libraryManager.FindByPath(parentPath, true) as Folder;
+                            logger.Info($"尝试刷新父级item: {parentFolder}");
+                            await this.providerManager
+                                .RefreshSingleItem(parentFolder, refreshOptions, collectionFolders, libraryOptions, CancellationToken.None)
+                                .ConfigureAwait(false);
+
                         }
                         // 提取完成后写入 JSON。
                         this.logger.Info("MediaInfo 提取完成，写入 JSON");

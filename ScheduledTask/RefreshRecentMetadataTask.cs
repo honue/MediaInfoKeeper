@@ -53,7 +53,7 @@ namespace MediaInfoKeeper.ScheduledTask
             foreach (var item in items)
             {
                 var created = item.DateCreated == default ? "unknown" : item.DateCreated.ToString("u");
-                this.logger.Info($"[{current + 1}/{total}] 刷新 {item.Path ?? item.Name} Created={created}");
+                this.logger.Info($"[{current + 1}/{total}] 刷新 {item.Path ?? item.Name} 入库日期 = {created}");
 
                 if (cancellationToken.IsCancellationRequested)
                 {
