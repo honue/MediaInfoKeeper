@@ -12,13 +12,13 @@ namespace MediaInfoKeeper.Configuration
         public override string EditorTitle => "最近条目计划任务";
 
         [DisplayName("最近入库媒体筛选数量")]
-        [Description("用于“最近条目”相关计划以及刷新媒体元数据 任务，默认 100。")]
+        [Description("用于“提取媒体信息（最近入库）”计划任务，默认 100。")]
         [MinValue(1)]
         [MaxValue(1000)]
         public int RecentItemsLimit { get; set; } = 100;
 
         [DisplayName("最近入库时间窗口（天）")]
-        [Description("用于刷新媒体元数据任务，仅处理指定天数内入库的条目，0 表示不限制。")]
+        [Description("用于“刷新媒体元数据（最近入库）”计划任务，仅处理指定天数内入库的条目，0 表示不限制。")]
         [MinValue(0)]
         [MaxValue(3650)]
         public int RecentItemsDays { get; set; } = 3;

@@ -107,8 +107,6 @@ namespace MediaInfoKeeper.ScheduledTask
 
         private List<BaseItem> FetchRecentItems()
         {
-            var limit = Math.Max(1, Plugin.Instance.Options.RecentTasks.RecentItemsLimit);
-
             var query = new InternalItemsQuery
             {
                 Recursive = true,
@@ -124,7 +122,6 @@ namespace MediaInfoKeeper.ScheduledTask
                 .Where(i => i.ExtraType is null)
                 .Where(i => cutoff == null || i.DateCreated >= cutoff)
                 .OrderByDescending(i => i.DateCreated)
-                .Take(limit)
                 .ToList();
 
             return items;
