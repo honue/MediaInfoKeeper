@@ -25,6 +25,6 @@ namespace MediaInfoKeeper.Configuration
         public RecentTaskOptions RecentTasks { get; set; } = new RecentTaskOptions();
 
         [DisplayName("GitHub")]
-        public string projectUrl { get; set; } = "https://github.com/honue/MediaInfoKeeper";
+        public GitHubOptions GitHub { get; set; } = new GitHubOptions();
     }
 }

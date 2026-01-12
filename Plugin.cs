@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using Emby.Web.GenericEdit.Common;
 using MediaInfoKeeper.Configuration;
@@ -43,6 +45,15 @@ namespace MediaInfoKeeper
         internal static IFileSystem FileSystem { get; private set; }
 
         private bool currentPersistMediaInfo;
+        private static readonly HttpClient HttpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(3)
+        };
+        private static readonly object LatestVersionLock = new object();
+        private static DateTimeOffset latestVersionCheckedUtc = DateTimeOffset.MinValue;
+        private static string latestReleaseVersionCache;
+        private static readonly TimeSpan LatestVersionCacheDuration = TimeSpan.FromMinutes(30);
+        private const string GitHubLatestReleaseUrl = "https://api.github.com/repos/honue/MediaInfoKeeper/releases/latest";
 
         /// <summary>初始化插件并注册库事件处理。</summary>
         public Plugin(
@@ -128,6 +139,8 @@ namespace MediaInfoKeeper
 
             options.LibraryList = list;
             options.LibraryScope.LibraryList = list;
+            options.GitHub.CurrentVersion = GetCurrentVersion();
+            options.GitHub.LatestReleaseVersion = GetLatestReleaseVersion();
             return base.OnBeforeShowUI(options);
         }
 
@@ -371,6 +384,78 @@ namespace MediaInfoKeeper
             var directoryService = new DirectoryService(this.logger, this.fileSystem);
             logger.Info("同步删除 媒体信息 Json");
             MediaInfoService.DeleteMediaInfoJson(e.Item, directoryService, "Item Removed Event");
+        }
+
+        private string GetLatestReleaseVersion()
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (now - latestVersionCheckedUtc < LatestVersionCacheDuration && !string.IsNullOrWhiteSpace(latestReleaseVersionCache))
+            {
+                return latestReleaseVersionCache;
+            }
+
+            lock (LatestVersionLock)
+            {
+                if (now - latestVersionCheckedUtc < LatestVersionCacheDuration && !string.IsNullOrWhiteSpace(latestReleaseVersionCache))
+                {
+                    return latestReleaseVersionCache;
+                }
+
+                latestVersionCheckedUtc = now;
+                latestReleaseVersionCache = FetchLatestReleaseVersion();
+                return latestReleaseVersionCache;
+            }
+        }
+
+        private string FetchLatestReleaseVersion()
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, GitHubLatestReleaseUrl);
+                request.Headers.UserAgent.ParseAdd("MediaInfoKeeper");
+                request.Headers.Accept.ParseAdd("application/vnd.github+json");
+
+                using var response = HttpClient.SendAsync(request).GetAwaiter().GetResult();
+                if (!response.IsSuccessStatusCode)
+                {
+                    this.logger.Info($"获取 GitHub 最新版本失败: {(int)response.StatusCode} {response.ReasonPhrase}");
+                    return "获取失败";
+                }
+
+                var json = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                using var document = JsonDocument.Parse(json);
+                if (document.RootElement.TryGetProperty("tag_name", out var tagElement))
+                {
+                    var tagName = tagElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(tagName))
+                    {
+                        return tagName.Trim();
+                    }
+                }
+
+                if (document.RootElement.TryGetProperty("name", out var nameElement))
+                {
+                    var releaseName = nameElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(releaseName))
+                    {
+                        return releaseName.Trim();
+                    }
+                }
+
+                return "未知";
+            }
+            catch (Exception ex)
+            {
+                this.logger.Info($"获取 GitHub 最新版本失败: {ex.Message}");
+                this.logger.Debug(ex.StackTrace);
+                return "获取失败";
+            }
+        }
+
+        private string GetCurrentVersion()
+        {
+            var version = this.GetType().Assembly.GetName().Version;
+            return version == null ? "未知" : version.ToString(3);
         }
     }
 }
