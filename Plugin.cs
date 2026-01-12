@@ -251,17 +251,6 @@ namespace MediaInfoKeeper
                         var libraryOptions = this.libraryManager.GetLibraryOptions(e.Item);
                         var dummyLibraryOptions = LibraryService.CopyLibraryOptions(libraryOptions);
 
-                        // 禁用本地元数据与保存器，避免额外写入。
-                        dummyLibraryOptions.DisabledLocalMetadataReaders = new[] { "Nfo" };
-                        dummyLibraryOptions.MetadataSavers = Array.Empty<string>();
-
-                        // 关闭元数据与图片抓取，仅保留媒体信息提取。
-                        foreach (var option in dummyLibraryOptions.TypeOptions)
-                        {
-                            option.MetadataFetchers = Array.Empty<string>();
-                            option.ImageFetchers = Array.Empty<string>();
-                        }
-
                         // 触发一次刷新以提取 MediaInfo。
                         e.Item.DateLastRefreshed = new DateTimeOffset();
                         using (FfprobeGuard.Allow())
