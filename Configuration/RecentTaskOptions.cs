@@ -35,5 +35,19 @@ namespace MediaInfoKeeper.Configuration
         [EditMultilSelect]
         [SelectItemsSource(nameof(RefreshMetadataModeOptions))]
         public string RefreshMetadataMode { get; set; } = "Fill";
+
+        [Browsable(false)]
+        public List<EditorSelectOption> RefreshImageModeOptions { get; set; } = new List<EditorSelectOption>
+        {
+            new EditorSelectOption { Value = "Fill", Name = "补全缺失" },
+            new EditorSelectOption { Value = "Replace", Name = "全部替换" }
+        };
+
+        [DisplayName("图片刷新模式")]
+        [Description("单选，选择“补全缺失”或“全部替换”图片。")]
+        [EditMultilSelect]
+        [SelectItemsSource(nameof(RefreshImageModeOptions))]
+        public string RefreshImageMode { get; set; } = "Fill";
+
     }
 }

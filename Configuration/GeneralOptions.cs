@@ -8,7 +8,7 @@ namespace MediaInfoKeeper.Configuration
     {
         public override string EditorTitle => "全局设置";
 
-        [DisplayName("启用 MediaInfo")]
+        [DisplayName("启用 MediaInfoKeeper 插件")]
         [Description("启用后优先从 JSON 恢复，提取后再写入 JSON。")]
         public bool PersistMediaInfoEnabled { get; set; } = true;
 
@@ -20,13 +20,9 @@ namespace MediaInfoKeeper.Configuration
         [Description("开启后阻止 Emby 自带的 ffprobe 运行，仅插件内部允许调用。")]
         public bool DisableSystemFfprobe { get; set; } = true;
 
-        [DisplayName("禁用 Emby 系统元数据刷新")]
-        [Description("开启后阻止 Emby 默认的 CanRefresh 通过，仅插件内部允许调用。")]
-        public bool DisableSystemMetadataRefresh { get; set; } = true;
-
-        [DisplayName("显示 MetadataProvidersGuard 日志")]
-        [Description("开启后记录 CanRefresh 拦截/放行日志，默认关闭。")]
-        public bool EnableMetadataProvidersGuardLog { get; set; } = false;
+        [DisplayName("启用剧集元数据变动监控")]
+        [Description("开启后将监控媒体元数据刷新过程，当剧集触发封面刷新时延迟恢复媒体信息，避免 .strm 文件刷新后出现媒体信息丢失的问题。")]
+        public bool EnableMetadataProvidersWatcher { get; set; } = true;
 
         [DisplayName("MediaInfo JSON 存储根目录")]
         [Description("为空时，JSON 保存到媒体文件同目录。填写后会用这个值，拼接媒体路径存储Json。")]

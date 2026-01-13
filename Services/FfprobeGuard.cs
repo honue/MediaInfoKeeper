@@ -35,14 +35,14 @@ namespace MediaInfoKeeper.Services
                 var mediaEncoding = Assembly.Load("Emby.Server.MediaEncoding");
                 if (mediaEncoding == null)
                 {
-                    logger.Warn("ffprobe guard init skipped: Emby.Server.MediaEncoding not found");
+                    logger.Warn("ffprobe guard 初始化跳过：未找到 Emby.Server.MediaEncoding");
                     return;
                 }
 
                 var mediaProbeManager = mediaEncoding.GetType("Emby.Server.MediaEncoding.Probing.MediaProbeManager");
                 if (mediaProbeManager == null)
                 {
-                    logger.Warn("ffprobe guard init skipped: MediaProbeManager type not found");
+                    logger.Warn("ffprobe guard 初始化跳过：未找到 MediaProbeManager 类型");
                     return;
                 }
 
@@ -59,11 +59,11 @@ namespace MediaInfoKeeper.Services
 
                 if (runFfProcess == null || emptyResult == null)
                 {
-                    logger.Warn("ffprobe guard init failed: target method not found or unsupported return type");
+                    logger.Warn("ffprobe guard 初始化失败：目标方法未找到或返回类型不支持");
                     return;
                 }
 
-                logger.Info($"ffprobe guard target: {runFfProcess.DeclaringType?.FullName}.{runFfProcess.Name}({string.Join(",", runFfProcess.GetParameters().Select(p => p.ParameterType.Name))}) -> {runFfProcess.ReturnType?.FullName}");
+                logger.Info($"ffprobe guard 目标方法: {runFfProcess.DeclaringType?.FullName}.{runFfProcess.Name}({string.Join(",", runFfProcess.GetParameters().Select(p => p.ParameterType.Name))}) -> {runFfProcess.ReturnType?.FullName}");
 
                 harmony = new Harmony("mediainfokeeper.ffprobe");
 
@@ -75,7 +75,7 @@ namespace MediaInfoKeeper.Services
                 }
                 catch (Exception patchEx)
                 {
-                    logger.Error("ffprobe guard patch failed");
+                    logger.Error("ffprobe guard patch 失败");
                     logger.Error(patchEx.Message);
                     logger.Error(patchEx.ToString());
                     harmony = null;
@@ -83,23 +83,23 @@ namespace MediaInfoKeeper.Services
                     return;
                 }
 
-                logger.Info("ffprobe guard installed");
+                logger.Info("ffprobe guard 已安装");
             }
             catch (Exception e)
             {
-                logger.Error("ffprobe guard init failed");
+                logger.Error("ffprobe guard 初始化失败");
                 logger.Error(e.Message);
                 logger.Error(e.ToString());
                 harmony = null;
                 isEnabled = false;
-                logger.Warn("ffprobe guard disabled due to initialization failure; ffprobe will not be intercepted.");
+                logger.Warn("ffprobe guard 初始化失败已禁用，ffprobe 不再拦截");
             }
         }
 
         public static void Configure(bool disableSystemFfprobe)
         {
             isEnabled = disableSystemFfprobe;
-            logger?.Info("ffprobe guard " + (isEnabled ? "enabled" : "disabled"));
+            logger?.Info("ffprobe guard " + (isEnabled ? "已启用" : "已禁用"));
         }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace MediaInfoKeeper.Services
                 var message = lines[lines.Length - 1].Trim();
                 if (!string.IsNullOrEmpty(message))
                 {
-                    logger.Error("ffprobe error: " + message);
+                logger.Error("ffprobe 错误: " + message);
                 }
             }
         }
@@ -179,7 +179,7 @@ namespace MediaInfoKeeper.Services
                     {
                         try { standardOutput?.SetValue(payload, "{}"); }
                         catch { /* best-effort stub */ }
-                        try { standardError?.SetValue(payload, "ffprobe suppressed by MediaInfoKeeper"); }
+                        try { standardError?.SetValue(payload, "ffprobe 已被 MediaInfoKeeper 拦截"); }
                         catch { /* best-effort stub */ }
                     }
                 }
@@ -265,7 +265,7 @@ namespace MediaInfoKeeper.Services
                     .Select(m =>
                         $"{m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))}) -> {m.ReturnType?.Name}");
 
-                logger?.Info($"{type?.FullName}.{methodName} candidates: {string.Join("; ", candidates ?? Enumerable.Empty<string>())}");
+                logger?.Info($"{type?.FullName}.{methodName} 候选方法: {string.Join("; ", candidates ?? Enumerable.Empty<string>())}");
             }
             catch (Exception e)
             {
@@ -283,7 +283,7 @@ namespace MediaInfoKeeper.Services
                     .Where(p => p.Name == propertyName)
                     .Select(p => $"{p.PropertyType?.Name} {p.Name}");
 
-                logger?.Info($"{type?.FullName}.{propertyName} property candidates: {string.Join("; ", candidates ?? Enumerable.Empty<string>())}");
+                logger?.Info($"{type?.FullName}.{propertyName} 候选属性: {string.Join("; ", candidates ?? Enumerable.Empty<string>())}");
             }
             catch (Exception e)
             {

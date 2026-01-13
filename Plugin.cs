@@ -77,9 +77,7 @@ namespace MediaInfoKeeper
             FileSystem = fileSystem;
 
             FfprobeGuard.Initialize(this.logger, this.Options.General.DisableSystemFfprobe);
-            MetadataProvidersGuard.Initialize(this.logger,
-                this.Options.General.DisableSystemMetadataRefresh,
-                this.Options.General.EnableMetadataProvidersGuardLog);
+            MetadataProvidersWatcher.Initialize(this.logger, this.Options.General.EnableMetadataProvidersWatcher);
 
             this.currentPersistMediaInfo = this.Options.General.PersistMediaInfoEnabled;
 
@@ -162,10 +160,10 @@ namespace MediaInfoKeeper
             this.logger.Info($"DeleteMediaInfoJsonOnRemove 设置为 {options.General.DeleteMediaInfoJsonOnRemove}");
             this.logger.Info($"CatchupLibraries 设置为 {(string.IsNullOrEmpty(options.LibraryScope.CatchupLibraries) ? "EMPTY" : options.LibraryScope.CatchupLibraries)}");
             this.logger.Info($"ScheduledTaskLibraries 设置为 {(string.IsNullOrEmpty(options.LibraryScope.ScheduledTaskLibraries) ? "EMPTY" : options.LibraryScope.ScheduledTaskLibraries)}");
+            this.logger.Info($"EnableMetadataProvidersWatcher 设置为 {options.General.EnableMetadataProvidersWatcher}");
 
             FfprobeGuard.Configure(options.General.DisableSystemFfprobe);
-            MetadataProvidersGuard.Configure(options.General.DisableSystemMetadataRefresh,
-                options.General.EnableMetadataProvidersGuardLog);
+            MetadataProvidersWatcher.Configure(options.General.EnableMetadataProvidersWatcher);
         }
 
         private string NormalizeScopedLibraries(string raw)
@@ -258,28 +256,28 @@ namespace MediaInfoKeeper
                     {
                         // 恢复失败时先触发媒体信息提取，再写入 JSON。
                         this.logger.Info("恢复失败，开始提取 MediaInfo");
-                        // 构建用于媒体信息提取的刷新参数与库选项。
-                        var refreshOptions = MediaInfoService.GetMediaInfoRefreshOptions();
-                        var collectionFolders = (BaseItem[])this.libraryManager.GetCollectionFolders(e.Item);
-                        var libraryOptions = this.libraryManager.GetLibraryOptions(e.Item);
-                        var dummyLibraryOptions = LibraryService.CopyLibraryOptions(libraryOptions);
 
                         // 触发一次刷新以提取 MediaInfo。
                         e.Item.DateLastRefreshed = new DateTimeOffset();
                         using (FfprobeGuard.Allow())
-                        using (MetadataProvidersGuard.Allow())
                         {
-                            await this.providerManager
-                                .RefreshSingleItem(e.Item, refreshOptions, collectionFolders, dummyLibraryOptions, CancellationToken.None)
-                                .ConfigureAwait(false);
-                            // 父级item也尝试刷新
-                            var parentPath = e.Item.ContainingFolderPath;
-                            var parentFolder = this.libraryManager.FindByPath(parentPath, true) as Folder;
-                            logger.Info($"尝试刷新父级item: {parentFolder}");
-                            await this.providerManager
-                                .RefreshSingleItem(parentFolder, refreshOptions, collectionFolders, libraryOptions, CancellationToken.None)
-                                .ConfigureAwait(false);
+                            this.logger.Info("恢复失败，是初次入库，进行下载元数据");
+                            // 构建用于媒体信息提取的刷新参数与库选项。
+                            var metadataRefreshOptions = new MetadataRefreshOptions(new DirectoryService(this.logger, this.fileSystem))
+                            {
+                                EnableRemoteContentProbe = true,
+                                MetadataRefreshMode = MetadataRefreshMode.FullRefresh,
+                                ImageRefreshMode = MetadataRefreshMode.FullRefresh,
+                                ReplaceAllMetadata = true,
+                                ReplaceAllImages = false
+                            };
 
+                            var itemCollectionFolders = (BaseItem[])this.libraryManager.GetCollectionFolders(e.Item);
+                            var itemLibraryOptions = this.libraryManager.GetLibraryOptions(e.Item);
+                            e.Item.DateLastRefreshed = new DateTimeOffset();
+                            await this.providerManager
+                                .RefreshSingleItem(e.Item, metadataRefreshOptions, itemCollectionFolders, itemLibraryOptions, CancellationToken.None)
+                                .ConfigureAwait(false);
                         }
                         // 提取完成后写入 JSON。
                         this.logger.Info("MediaInfo 提取完成，写入 JSON");
@@ -350,6 +348,7 @@ namespace MediaInfoKeeper
                     this.logger.Info("已有 MediaInfo，覆盖写入 JSON");
                     _ = MediaInfoService.SerializeMediaInfo(e.Item.InternalId, directoryService, true, "OnItemAdded Overwrite");
                 }
+
             }
             catch (Exception ex)
             {

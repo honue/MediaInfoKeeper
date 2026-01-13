@@ -46,8 +46,9 @@ namespace MediaInfoKeeper.ScheduledTask
                 return;
             }
 
-            var replace = ShouldReplace();
-            this.logger.Info($"计划任务条目数 {total}，覆盖模式={replace}");
+            var replaceMetadata = ShouldReplaceMetadata();
+            var replaceImages = ShouldReplaceImages();
+            this.logger.Info($"计划任务条目数{total}，元数据覆盖{replaceMetadata}，图片覆盖{replaceImages}");
 
             var current = 0;
             foreach (var item in items)
@@ -63,16 +64,13 @@ namespace MediaInfoKeeper.ScheduledTask
 
                 try
                 {
-                    var options = BuildRefreshOptions(replace);
+                    var options = BuildRefreshOptions(replaceMetadata, replaceImages);
                     var collectionFolders = (BaseItem[])this.libraryManager.GetCollectionFolders(item);
                     var libraryOptions = this.libraryManager.GetLibraryOptions(item);
 
-                    using (MetadataProvidersGuard.Allow())
-                    {
-                        await Plugin.ProviderManager
-                            .RefreshSingleItem(item, options, collectionFolders, libraryOptions, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
+                    await Plugin.ProviderManager
+                        .RefreshSingleItem(item, options, collectionFolders, libraryOptions, cancellationToken)
+                        .ConfigureAwait(false);
                     // 刷新完元数据要重新从json恢复媒体信息，
                     // 非strm会重新 ffprobe，但是没有allow所以会拦截，
                     // strm会丢失信息，所以重新恢复
@@ -127,22 +125,38 @@ namespace MediaInfoKeeper.ScheduledTask
             return items;
         }
 
-        private MetadataRefreshOptions BuildRefreshOptions(bool replace)
+        private MetadataRefreshOptions BuildRefreshOptions(bool replaceMetadata, bool replaceImages)
         {
             var directoryService = new DirectoryService(this.logger, Plugin.FileSystem);
             return new MetadataRefreshOptions(directoryService)
             {
                 EnableRemoteContentProbe = true,
-                MetadataRefreshMode = replace ? MetadataRefreshMode.FullRefresh : MetadataRefreshMode.Default,
-                ImageRefreshMode = replace ? MetadataRefreshMode.FullRefresh : MetadataRefreshMode.Default,
-                ReplaceAllMetadata = replace,
-                ReplaceAllImages = replace
+                MetadataRefreshMode = MetadataRefreshMode.FullRefresh,
+                ImageRefreshMode = MetadataRefreshMode.FullRefresh,
+                ReplaceAllMetadata = replaceMetadata,
+                ReplaceAllImages = replaceImages
             };
         }
 
-        private bool ShouldReplace()
+        private bool ShouldReplaceMetadata()
         {
             var mode = Plugin.Instance.Options.RecentTasks.RefreshMetadataMode ?? string.Empty;
+            return HasReplaceFlag(mode);
+        }
+
+        private bool ShouldReplaceImages()
+        {
+            var mode = Plugin.Instance.Options.RecentTasks.RefreshImageMode;
+            if (string.IsNullOrWhiteSpace(mode))
+            {
+                mode = Plugin.Instance.Options.RecentTasks.RefreshMetadataMode ?? string.Empty;
+            }
+
+            return HasReplaceFlag(mode);
+        }
+
+        private static bool HasReplaceFlag(string mode)
+        {
             var tokens = mode.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             return tokens.Any(v => v.Equals("Replace", StringComparison.OrdinalIgnoreCase));
         }

@@ -130,7 +130,6 @@ namespace MediaInfoKeeper.ScheduledTask
             }
 
             using (FfprobeGuard.Allow())
-            using (MetadataProvidersGuard.Allow())
             {
                 var filePath = item.Path;
                 if (string.IsNullOrEmpty(filePath))
