@@ -414,6 +414,12 @@ namespace MediaInfoKeeper
                 request.Headers.UserAgent.ParseAdd("MediaInfoKeeper");
                 request.Headers.Accept.ParseAdd("application/vnd.github+json");
 
+                var token = this.Options?.GitHub?.GitHubToken;
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    request.Headers.TryAddWithoutValidation("Authorization", $"token {token}");
+                }
+
                 using var response = HttpClient.SendAsync(request).GetAwaiter().GetResult();
                 if (!response.IsSuccessStatusCode)
                 {
@@ -454,7 +460,7 @@ namespace MediaInfoKeeper
         private string GetCurrentVersion()
         {
             var version = this.GetType().Assembly.GetName().Version;
-            return version == null ? "未知" : version.ToString(3);
+            return version == null ? "未知" : $"v{version.ToString(3)}";
         }
     }
 }

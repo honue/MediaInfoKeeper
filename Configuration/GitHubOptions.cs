@@ -16,5 +16,10 @@ namespace MediaInfoKeeper.Configuration
 
         [DisplayName("当前版本")]
         public string CurrentVersion { get; set; } = "未知";
+
+        [DisplayName("GitHub 访问令牌")]
+        [Description("设置后使用 Token 获取 Releases，避免未认证请求的限流。")]
+        public string GitHubToken { get; set; } = string.Empty;
+
     }
 }

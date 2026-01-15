@@ -71,13 +71,21 @@ namespace MediaInfoKeeper.ScheduledTask
 
             try
             {
+                var githubOptions = Plugin.Instance.Options.GitHub;
+                var githubToken = githubOptions?.GitHubToken;
+                var authHeader = string.IsNullOrWhiteSpace(githubToken) ? null : $"token {githubToken}";
+
                 using var response = await httpClient.SendAsync(new HttpRequestOptions
                 {
                     Url = RepoReleaseUrl,
                     CancellationToken = cancellationToken,
                     AcceptHeader = "application/json",
                     UserAgent = "MediaInfoKeeper",
-                    EnableDefaultUserAgent = false
+                    EnableDefaultUserAgent = false,
+                    RequestHeaders =
+                    {
+                        ["Authorization"] = authHeader
+                    }
                 }, "GET").ConfigureAwait(false);
 
                 await using var contentStream = response.Content;
@@ -104,7 +112,11 @@ namespace MediaInfoKeeper.ScheduledTask
                                          CancellationToken = cancellationToken,
                                          UserAgent = "MediaInfoKeeper",
                                          EnableDefaultUserAgent = false,
-                                         Progress = progress
+                                         Progress = progress,
+                                         RequestHeaders =
+                                         {
+                                             ["Authorization"] = authHeader
+                                         }
                                      })
                                      .ConfigureAwait(false))
                     {
@@ -175,7 +187,7 @@ namespace MediaInfoKeeper.ScheduledTask
         private static string GetCurrentVersion()
         {
             var version = Assembly.GetExecutingAssembly().GetName().Version;
-            return version == null ? "0.0.0" : version.ToString(3);
+            return version == null ? "0.0.0" : $"v{version.ToString(3)}";
         }
 
         internal class ApiResponseInfo
