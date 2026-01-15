@@ -6,6 +6,8 @@ using System.Text.Json;
 using System.Threading;
 using Emby.Web.GenericEdit.Common;
 using MediaInfoKeeper.Configuration;
+using MediaInfoKeeper.Options.Store;
+using MediaInfoKeeper.Options.View;
 using MediaInfoKeeper.Services;
 using MediaBrowser.Common;
 using MediaBrowser.Common.Plugins;
@@ -18,6 +20,7 @@ using MediaBrowser.Model.Drawing;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Plugins;
+using MediaBrowser.Model.Plugins.UI;
 using MediaBrowser.Model.Serialization;
 
 namespace MediaInfoKeeper
@@ -25,7 +28,7 @@ namespace MediaInfoKeeper
     /// <summary>
     /// The plugin.
     /// </summary>
-    public class Plugin : BasePluginSimpleUI<PluginConfiguration>, IHasThumbImage
+    public class Plugin : BasePlugin, IHasThumbImage, IHasUIPages
     {
         public const string PluginName = "MediaInfoKeeper";
 
@@ -35,6 +38,7 @@ namespace MediaInfoKeeper
 
         private readonly Guid id = new Guid("874D7056-072D-43A4-16DD-BC32665B9563");
         private readonly ILogger logger;
+        private List<IPluginUIPageController> pages;
 
         private readonly ILibraryManager libraryManager;
         private readonly IProviderManager providerManager;
@@ -45,6 +49,9 @@ namespace MediaInfoKeeper
         internal static IFileSystem FileSystem { get; private set; }
 
         private bool currentPersistMediaInfo;
+        internal readonly PluginOptionsStore OptionsStore;
+        internal readonly MainPageOptionsStore MainPageOptionsStore;
+        internal readonly GitHubOptionsStore GitHubOptionsStore;
         private static readonly HttpClient HttpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(3)
@@ -63,7 +70,7 @@ namespace MediaInfoKeeper
             IProviderManager providerManager,
             IItemRepository itemRepository,
             IJsonSerializer jsonSerializer,
-            IFileSystem fileSystem) : base(applicationHost)
+            IFileSystem fileSystem)
         {
             Instance = this;
             this.logger = logManager.GetLogger(this.Name);
@@ -75,6 +82,11 @@ namespace MediaInfoKeeper
             this.fileSystem = fileSystem;
             ProviderManager = providerManager;
             FileSystem = fileSystem;
+
+            OptionsStore = new PluginOptionsStore(applicationHost, this.logger, this.Name,
+                PrepareOptionsForUi, HandleOptionsSaving, HandleOptionsSaved);
+            MainPageOptionsStore = new MainPageOptionsStore(OptionsStore);
+            GitHubOptionsStore = new GitHubOptionsStore(OptionsStore);
 
             FfprobeGuard.Initialize(this.logger, this.Options.General.DisableSystemFfprobe);
             MetadataProvidersWatcher.Initialize(this.logger, this.Options.General.EnableMetadataProvidersWatcher);
@@ -95,7 +107,7 @@ namespace MediaInfoKeeper
 
         public sealed override string Name => PluginName;
 
-        public PluginConfiguration Options => this.GetOptions();
+        public PluginConfiguration Options => this.OptionsStore.GetOptions();
 
         public ILogger Logger => this.logger;
 
@@ -107,17 +119,35 @@ namespace MediaInfoKeeper
             return type.Assembly.GetManifestResourceStream(type.Namespace + ".Resources.ThumbImage.png");
         }
 
-        protected override void OnCreatePageInfo(PluginPageInfo pageInfo)
+        public IReadOnlyCollection<IPluginUIPageController> UIPageControllers
         {
-            pageInfo.Name = "MediaInfoKeeper";
-            pageInfo.DisplayName = "MediaInfoKeeper";
-            pageInfo.MenuIcon = "video_settings";
-            pageInfo.EnableInMainMenu = true;
-            pageInfo.IsMainConfigPage = true;
+            get
+            {
+                if (this.pages == null)
+                {
+                    this.pages = new List<IPluginUIPageController>
+                    {
+                        new MainPageController(this.GetPluginInfo(), this.MainPageOptionsStore,
+                            this.GitHubOptionsStore)
+                    };
+                }
+
+                return this.pages.AsReadOnly();
+            }
         }
 
-        protected override PluginConfiguration OnBeforeShowUI(PluginConfiguration options)
+        internal void PrepareOptionsForUi(PluginConfiguration options)
         {
+            if (options == null)
+            {
+                return;
+            }
+
+            options.General ??= new GeneralOptions();
+            options.LibraryScope ??= new LibraryScopeOptions();
+            options.RecentTasks ??= new RecentTaskOptions();
+            options.GitHub ??= new GitHubOptions();
+
             var list = new List<EditorSelectOption>();
             foreach (var folder in this.libraryManager.GetVirtualFolders())
             {
@@ -139,19 +169,31 @@ namespace MediaInfoKeeper
             options.LibraryScope.LibraryList = list;
             options.GitHub.CurrentVersion = GetCurrentVersion();
             options.GitHub.LatestReleaseVersion = GetLatestReleaseVersion();
-            return base.OnBeforeShowUI(options);
         }
 
-        protected override bool OnOptionsSaving(PluginConfiguration options)
+        internal bool HandleOptionsSaving(PluginConfiguration options)
         {
+            if (options?.LibraryScope == null)
+            {
+                return true;
+            }
+
             options.LibraryScope.CatchupLibraries = NormalizeScopedLibraries(options.LibraryScope.CatchupLibraries);
             options.LibraryScope.ScheduledTaskLibraries = NormalizeScopedLibraries(options.LibraryScope.ScheduledTaskLibraries);
-            return base.OnOptionsSaving(options);
+            return true;
         }
 
         /// <summary>应用配置变更并更新缓存标记。</summary>
-        protected override void OnOptionsSaved(PluginConfiguration options)
+        internal void HandleOptionsSaved(PluginConfiguration options)
         {
+            if (options == null)
+            {
+                return;
+            }
+
+            options.General ??= new GeneralOptions();
+            options.LibraryScope ??= new LibraryScopeOptions();
+
             this.currentPersistMediaInfo = options.General.PersistMediaInfoEnabled;
 
             this.logger.Info($"{this.Name} 配置已更新。");

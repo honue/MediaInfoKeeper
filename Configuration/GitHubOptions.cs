@@ -15,7 +15,9 @@ namespace MediaInfoKeeper.Configuration
         public string LatestReleaseVersion { get; set; } = "加载中";
 
         [DisplayName("当前版本")]
+        [Description("计划任务可以更新插件。")]
         public string CurrentVersion { get; set; } = "未知";
+
 
         [DisplayName("GitHub 访问令牌")]
         [Description("设置后使用 Token 获取 Releases，避免未认证请求的限流。")]
