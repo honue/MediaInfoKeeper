@@ -50,35 +50,13 @@ namespace MediaInfoKeeper.ScheduledTask
                 return;
             }
 
-            var current = 0;
-            foreach (var item in items)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    this.logger.Info("计划任务已取消");
-                    return;
-                }
-
-                try
-                {
-                    await ProcessItemAsync(item, "Recent Scheduled Task", cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    this.logger.Info($"计划任务已取消 {item.Path}");
-                    return;
-                }
-                catch (Exception e)
-                {
-                    this.logger.Error($"计划任务失败: {item.Path}");
-                    this.logger.Error(e.Message);
-                    this.logger.Debug(e.StackTrace);
-                }
-
-                current++;
-                progress.Report(current / (double)total * 100);
-            }
+            await MediaInfoTaskRunner.ProcessItemsAsync(
+                    items,
+                    item => ProcessItemAsync(item, "Recent Scheduled Task", cancellationToken),
+                    this.logger,
+                    cancellationToken,
+                    progress)
+                .ConfigureAwait(false);
 
             this.logger.Info("计划任务完成");
         }

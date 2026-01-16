@@ -24,6 +24,9 @@ namespace MediaInfoKeeper.Configuration
         [DisplayName("计划任务参数")]
         public RecentTaskOptions RecentTasks { get; set; } = new RecentTaskOptions();
 
+        [DisplayName("IntroSkip")]
+        public IntroSkipOptions IntroSkip { get; set; } = new IntroSkipOptions();
+
         [DisplayName("GitHub")]
         public GitHubOptions GitHub { get; set; } = new GitHubOptions();
     }

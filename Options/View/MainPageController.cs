@@ -16,7 +16,8 @@ namespace MediaInfoKeeper.Options.View
 
         public MainPageController(PluginInfo pluginInfo,
             MainPageOptionsStore mainPageOptionsStore,
-            GitHubOptionsStore gitHubOptionsStore)
+            GitHubOptionsStore gitHubOptionsStore,
+            IntroSkipOptionsStore introSkipOptionsStore)
             : base(pluginInfo.Id)
         {
             this.pluginInfo = pluginInfo;
@@ -26,13 +27,18 @@ namespace MediaInfoKeeper.Options.View
             {
                 Name = "MediaInfoKeeper",
                 EnableInMainMenu = true,
-                DisplayName = "MediaInfoKeeper",
+                DisplayName = "MediaInfo Keeper",
                 MenuIcon = "video_settings",
                 IsMainConfigPage = true
             };
 
+
+            this.tabPages.Add(new TabPageController(pluginInfo, nameof(IntroSkipPageView), "IntroSkip",
+                e => new IntroSkipPageView(pluginInfo, introSkipOptionsStore)));
+
             this.tabPages.Add(new TabPageController(pluginInfo, nameof(GitHubPageView), "GitHub & Update",
                 e => new GitHubPageView(pluginInfo, gitHubOptionsStore)));
+
         }
 
         public override PluginPageInfo PageInfo { get; }

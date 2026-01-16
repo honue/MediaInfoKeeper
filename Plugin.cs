@@ -9,6 +9,7 @@ using MediaInfoKeeper.Configuration;
 using MediaInfoKeeper.Options.Store;
 using MediaInfoKeeper.Options.View;
 using MediaInfoKeeper.Services;
+using MediaInfoKeeper.Services.IntroSkip;
 using MediaBrowser.Common;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Entities;
@@ -16,6 +17,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Controller.Providers;
+using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Drawing;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
@@ -35,6 +37,8 @@ namespace MediaInfoKeeper
         public static Plugin Instance { get; private set; }
         public static MediaInfoService MediaInfoService { get; private set; }
         public static LibraryService LibraryService { get; private set; }
+        public static IntroSkipChapterApi IntroSkipChapterApi { get; private set; }
+        public static IntroSkipPlaySessionMonitor IntroSkipPlaySessionMonitor { get; private set; }
 
         private readonly Guid id = new Guid("874D7056-072D-43A4-16DD-BC32665B9563");
         private readonly ILogger logger;
@@ -44,14 +48,18 @@ namespace MediaInfoKeeper
         private readonly IProviderManager providerManager;
         private readonly IItemRepository itemRepository;
         private readonly IFileSystem fileSystem;
+        private readonly IUserManager userManager;
+        private readonly ISessionManager sessionManager;
 
         internal static IProviderManager ProviderManager { get; private set; }
         internal static IFileSystem FileSystem { get; private set; }
+        internal static ILibraryManager LibraryManager { get; private set; }
 
         private bool currentPersistMediaInfo;
         internal readonly PluginOptionsStore OptionsStore;
         internal readonly MainPageOptionsStore MainPageOptionsStore;
         internal readonly GitHubOptionsStore GitHubOptionsStore;
+        internal readonly IntroSkipOptionsStore IntroSkipOptionsStore;
         private static readonly HttpClient HttpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(3)
@@ -69,6 +77,8 @@ namespace MediaInfoKeeper
             ILibraryManager libraryManager,
             IProviderManager providerManager,
             IItemRepository itemRepository,
+            IUserManager userManager,
+            ISessionManager sessionManager,
             IJsonSerializer jsonSerializer,
             IFileSystem fileSystem)
         {
@@ -80,21 +90,38 @@ namespace MediaInfoKeeper
             this.providerManager = providerManager;
             this.itemRepository = itemRepository;
             this.fileSystem = fileSystem;
+            this.userManager = userManager;
+            this.sessionManager = sessionManager;
             ProviderManager = providerManager;
             FileSystem = fileSystem;
+            LibraryManager = libraryManager;
 
             OptionsStore = new PluginOptionsStore(applicationHost, this.logger, this.Name,
                 PrepareOptionsForUi, HandleOptionsSaving, HandleOptionsSaved);
             MainPageOptionsStore = new MainPageOptionsStore(OptionsStore);
             GitHubOptionsStore = new GitHubOptionsStore(OptionsStore);
+            IntroSkipOptionsStore = new IntroSkipOptionsStore(OptionsStore);
 
             FfprobeGuard.Initialize(this.logger, this.Options.General.DisableSystemFfprobe);
             MetadataProvidersWatcher.Initialize(this.logger, this.Options.General.EnableMetadataProvidersWatcher);
+            UnlockIntroSkip.Initialize(this.logger, this.Options.IntroSkip?.UnlockIntroSkip ?? false);
+            UnlockIntroSkip.Configure(this.Options);
+            IntroMarkerProtect.Initialize(this.logger, this.Options.IntroSkip?.ProtectIntroMarkers ?? true);
 
             this.currentPersistMediaInfo = this.Options.General.PersistMediaInfoEnabled;
 
             LibraryService = new LibraryService(libraryManager, providerManager, fileSystem);
             MediaInfoService = new MediaInfoService(libraryManager, fileSystem, itemRepository, jsonSerializer);
+            IntroSkipChapterApi = new IntroSkipChapterApi(libraryManager, itemRepository, this.logger);
+            IntroSkipPlaySessionMonitor = new IntroSkipPlaySessionMonitor(
+                libraryManager, userManager, sessionManager, this.logger);
+
+            if (this.Options.IntroSkip?.EnableIntroSkip == true)
+            {
+                IntroSkipPlaySessionMonitor.Initialize();
+                IntroSkipPlaySessionMonitor.UpdateLibraryPathsInScope(this.Options.IntroSkip.LibraryScope);
+                IntroSkipPlaySessionMonitor.UpdateUsersInScope(this.Options.IntroSkip.UserScope);
+            }
 
             this.libraryManager.ItemAdded += this.OnItemAdded;
             this.libraryManager.ItemRemoved += this.OnItemRemoved;
@@ -128,7 +155,7 @@ namespace MediaInfoKeeper
                     this.pages = new List<IPluginUIPageController>
                     {
                         new MainPageController(this.GetPluginInfo(), this.MainPageOptionsStore,
-                            this.GitHubOptionsStore)
+                            this.GitHubOptionsStore, this.IntroSkipOptionsStore)
                     };
                 }
 
@@ -146,6 +173,7 @@ namespace MediaInfoKeeper
             options.General ??= new GeneralOptions();
             options.LibraryScope ??= new LibraryScopeOptions();
             options.RecentTasks ??= new RecentTaskOptions();
+            options.IntroSkip ??= new IntroSkipOptions();
             options.GitHub ??= new GitHubOptions();
 
             var list = new List<EditorSelectOption>();
@@ -167,6 +195,7 @@ namespace MediaInfoKeeper
 
             options.LibraryList = list;
             options.LibraryScope.LibraryList = list;
+            options.IntroSkip.LibraryList = list;
             options.GitHub.CurrentVersion = GetCurrentVersion();
             options.GitHub.LatestReleaseVersion = GetLatestReleaseVersion();
         }
@@ -180,6 +209,11 @@ namespace MediaInfoKeeper
 
             options.LibraryScope.CatchupLibraries = NormalizeScopedLibraries(options.LibraryScope.CatchupLibraries);
             options.LibraryScope.ScheduledTaskLibraries = NormalizeScopedLibraries(options.LibraryScope.ScheduledTaskLibraries);
+            if (options.IntroSkip != null)
+            {
+                options.IntroSkip.LibraryScope = NormalizeScopedLibraries(options.IntroSkip.LibraryScope);
+                options.IntroSkip.MarkerEnabledLibraryScope = NormalizeScopedLibraries(options.IntroSkip.MarkerEnabledLibraryScope);
+            }
             return true;
         }
 
@@ -193,6 +227,7 @@ namespace MediaInfoKeeper
 
             options.General ??= new GeneralOptions();
             options.LibraryScope ??= new LibraryScopeOptions();
+            options.IntroSkip ??= new IntroSkipOptions();
 
             this.currentPersistMediaInfo = options.General.PersistMediaInfoEnabled;
 
@@ -203,9 +238,24 @@ namespace MediaInfoKeeper
             this.logger.Info($"CatchupLibraries 设置为 {(string.IsNullOrEmpty(options.LibraryScope.CatchupLibraries) ? "EMPTY" : options.LibraryScope.CatchupLibraries)}");
             this.logger.Info($"ScheduledTaskLibraries 设置为 {(string.IsNullOrEmpty(options.LibraryScope.ScheduledTaskLibraries) ? "EMPTY" : options.LibraryScope.ScheduledTaskLibraries)}");
             this.logger.Info($"EnableMetadataProvidersWatcher 设置为 {options.General.EnableMetadataProvidersWatcher}");
+            this.logger.Info($"MaxConcurrentCount 设置为 {options.General.MaxConcurrentCount}");
 
             FfprobeGuard.Configure(options.General.DisableSystemFfprobe);
             MetadataProvidersWatcher.Configure(options.General.EnableMetadataProvidersWatcher);
+            UnlockIntroSkip.Configure(options);
+
+            if (options.IntroSkip.EnableIntroSkip)
+            {
+                IntroSkipPlaySessionMonitor.Initialize();
+                IntroSkipPlaySessionMonitor.UpdateLibraryPathsInScope(options.IntroSkip.LibraryScope);
+                IntroSkipPlaySessionMonitor.UpdateUsersInScope(options.IntroSkip.UserScope);
+            }
+            else
+            {
+                IntroSkipPlaySessionMonitor.Dispose();
+            }
+
+            IntroMarkerProtect.Configure(options.IntroSkip.ProtectIntroMarkers);
         }
 
         private string NormalizeScopedLibraries(string raw)
