@@ -27,6 +27,9 @@ namespace MediaInfoKeeper.Configuration
         [DisplayName("IntroSkip")]
         public IntroSkipOptions IntroSkip { get; set; } = new IntroSkipOptions();
 
+        [DisplayName("Proxy")]
+        public ProxyOptions Proxy { get; set; } = new ProxyOptions();
+
         [DisplayName("GitHub")]
         public GitHubOptions GitHub { get; set; } = new GitHubOptions();
     }

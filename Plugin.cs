@@ -60,6 +60,7 @@ namespace MediaInfoKeeper
         internal readonly MainPageOptionsStore MainPageOptionsStore;
         internal readonly GitHubOptionsStore GitHubOptionsStore;
         internal readonly IntroSkipOptionsStore IntroSkipOptionsStore;
+        internal readonly ProxyOptionsStore ProxyOptionsStore;
         private static readonly HttpClient HttpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(3)
@@ -101,12 +102,14 @@ namespace MediaInfoKeeper
             MainPageOptionsStore = new MainPageOptionsStore(OptionsStore);
             GitHubOptionsStore = new GitHubOptionsStore(OptionsStore);
             IntroSkipOptionsStore = new IntroSkipOptionsStore(OptionsStore);
+            ProxyOptionsStore = new ProxyOptionsStore(OptionsStore);
 
             FfprobeGuard.Initialize(this.logger, this.Options.General.DisableSystemFfprobe);
             MetadataProvidersWatcher.Initialize(this.logger, this.Options.General.EnableMetadataProvidersWatcher);
             UnlockIntroSkip.Initialize(this.logger, this.Options.IntroSkip?.UnlockIntroSkip ?? false);
             UnlockIntroSkip.Configure(this.Options);
             IntroMarkerProtect.Initialize(this.logger, this.Options.IntroSkip?.ProtectIntroMarkers ?? true);
+            ProxyServer.Initialize(this.logger, this.Options.Proxy?.EnableProxyServer ?? false);
 
             this.currentPersistMediaInfo = this.Options.General.PersistMediaInfoEnabled;
 
@@ -155,7 +158,7 @@ namespace MediaInfoKeeper
                     this.pages = new List<IPluginUIPageController>
                     {
                         new MainPageController(this.GetPluginInfo(), this.MainPageOptionsStore,
-                            this.GitHubOptionsStore, this.IntroSkipOptionsStore)
+                            this.GitHubOptionsStore, this.IntroSkipOptionsStore, this.ProxyOptionsStore)
                     };
                 }
 
@@ -174,6 +177,7 @@ namespace MediaInfoKeeper
             options.LibraryScope ??= new LibraryScopeOptions();
             options.RecentTasks ??= new RecentTaskOptions();
             options.IntroSkip ??= new IntroSkipOptions();
+            options.Proxy ??= new ProxyOptions();
             options.GitHub ??= new GitHubOptions();
 
             var list = new List<EditorSelectOption>();
@@ -239,10 +243,15 @@ namespace MediaInfoKeeper
             this.logger.Info($"ScheduledTaskLibraries 设置为 {(string.IsNullOrEmpty(options.LibraryScope.ScheduledTaskLibraries) ? "EMPTY" : options.LibraryScope.ScheduledTaskLibraries)}");
             this.logger.Info($"EnableMetadataProvidersWatcher 设置为 {options.General.EnableMetadataProvidersWatcher}");
             this.logger.Info($"MaxConcurrentCount 设置为 {options.General.MaxConcurrentCount}");
+            this.logger.Info($"EnableProxyServer 设置为 {options.Proxy.EnableProxyServer}");
+            this.logger.Info($"ProxyServerUrl 设置为 {(string.IsNullOrEmpty(options.Proxy.ProxyServerUrl) ? "EMPTY" : options.Proxy.ProxyServerUrl)}");
+            this.logger.Info($"IgnoreCertificateValidation 设置为 {options.Proxy.IgnoreCertificateValidation}");
+            this.logger.Info($"WriteProxyEnvVars 设置为 {options.Proxy.WriteProxyEnvVars}");
 
             FfprobeGuard.Configure(options.General.DisableSystemFfprobe);
             MetadataProvidersWatcher.Configure(options.General.EnableMetadataProvidersWatcher);
             UnlockIntroSkip.Configure(options);
+            ProxyServer.Configure(options.Proxy.EnableProxyServer);
 
             if (options.IntroSkip.EnableIntroSkip)
             {

@@ -17,7 +17,8 @@ namespace MediaInfoKeeper.Options.View
         public MainPageController(PluginInfo pluginInfo,
             MainPageOptionsStore mainPageOptionsStore,
             GitHubOptionsStore gitHubOptionsStore,
-            IntroSkipOptionsStore introSkipOptionsStore)
+            IntroSkipOptionsStore introSkipOptionsStore,
+            ProxyOptionsStore proxyOptionsStore)
             : base(pluginInfo.Id)
         {
             this.pluginInfo = pluginInfo;
@@ -35,6 +36,9 @@ namespace MediaInfoKeeper.Options.View
 
             this.tabPages.Add(new TabPageController(pluginInfo, nameof(IntroSkipPageView), "IntroSkip",
                 e => new IntroSkipPageView(pluginInfo, introSkipOptionsStore)));
+
+            this.tabPages.Add(new TabPageController(pluginInfo, nameof(ProxyPageView), "Proxy",
+                e => new ProxyPageView(pluginInfo, proxyOptionsStore)));
 
             this.tabPages.Add(new TabPageController(pluginInfo, nameof(GitHubPageView), "GitHub & Update",
                 e => new GitHubPageView(pluginInfo, gitHubOptionsStore)));
