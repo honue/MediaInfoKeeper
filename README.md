@@ -1,96 +1,42 @@
-﻿MediaInfoKeeper
+MediaInfoKeeper
 ===============
 
 <p align="center">
   <img src="Resources/ThumbImage.png" alt="MediaInfoKeeper" width="320" />
 </p>
 
-目录
-----
 
-- [安装](#安装)
-- [媒体信息保存流程](#媒体信息保存流程)
-- [保存规则](#保存规则)
-- [配置项](#配置项)
-- [计划任务](#计划任务)
-- [感谢](#感谢)
+功能
+----------
 
-安装
-----
-MediaInfoKeeper 1.4.0 稳定可用版本，支持Emby 4.9.1.80 及以上版本，4.8 不支持，我没做兼容处理。
-1. 下载 `MediaInfoKeeper.dll`：<https://github.com/honue/MediaInfoKeeper/releases>
-2. 放入 Emby 配置目录中的 `plugins` 目录。
-3. 重启 Emby 后在插件页面配置使用。
-
-媒体信息保存流程
---------------
-
-将媒体信息持久化为 JSON，需要时可快速恢复，减少首次播放或批量刷新时的提取成本。
-
-处理流程
---------
-
-1. 触发范围
-- 新媒体入库时触发（ItemAdded）。
-- 仅处理视频条目。
-
-2. JSON 优先恢复
-- 启用“MediaInfo 保存与恢复”时，优先从 JSON 恢复。
-- 恢复成功则不再执行提取。
-
-3. 提取并持久化
-- JSON 不存在或恢复失败时，执行媒体信息提取。
-- 提取完成后写入 JSON。
-
-4. 已有 MediaInfo 的条目
-- 若条目已有 MediaInfo，直接导出覆盖写入 JSON。
-
-5. 条目移除
-- 启用“条目移除时删除 JSON”时，删除对应 JSON 文件。
-
-6. 元数据刷新
-- 执行 Emby 元数据刷新（手动或计划任务）时，先完成元数据刷新。
-- 刷新完成后按配置从 JSON 恢复 MediaInfo（补全或覆盖）。
-
-Watcher 作用
-------------
-
-启用“剧集元数据变动监听”后，会监控剧集封面等元数据刷新过程；检测到刷新触发后延迟恢复 MediaInfo，避免刷新后 MediaInfo 丢失（尤其是 .strm 条目）。
-已解决的刷新问题：
-- 非 STRM 刷新不再重复提取（ffprobe Guard 不再允许）。
-- STRM 刷新后 MediaInfo 不再丢失（恢复 mediainfo.json）。
-
-保存规则
---------
-
-- JSON 文件名：默认在媒体同目录下以 {FileName}-mediainfo.json 保存。
-- 若配置了“MediaInfo JSON 存储根目录”，则按盘符根目录的相对路径写入该根目录。
-
-配置项
-------
-
-- 启用 MediaInfo：启用后优先恢复，提取后写入 JSON。
-- MediaInfo JSON 存储根目录：为空时保存到媒体文件同目录（支持文件夹选择器）。
-- 条目移除时删除 JSON：删除条目时移除对应 JSON。
-- 禁用 Emby 系统 ffprobe：仅插件内部允许调用。
-- 禁用 Emby 系统元数据刷新：仅插件内部允许调用。
-- 启用剧集元数据变动监听：监控封面刷新触发，延迟从 JSON 恢复 MediaInfo，防止刷新造成丢失。
-- 追更媒体库：用于入库触发与删除 JSON 逻辑；留空表示全部。支持多选。
-- 计划任务媒体库：用于计划任务范围；留空表示全部。支持多选。
-- 最近入库条目数量：用于“提取媒体信息（最近入库）”计划任务，默认 100。
-- 最近入库时间窗口（天）：用于“刷新媒体元数据（最近入库）”计划任务，0 表示不限制。
-- 元数据刷新模式：用于“刷新媒体元数据（最近入库）”计划任务，补全或全部替换。
+- MediaInfo Keeper：MediaInfo 的缓存、恢复与刷新保护。
+- IntroSkip：片头片尾跳过相关。
+- Search：搜索与匹配增强。
+- Proxy：设置Http代理能力。
+- GitHub & Update：版本获取与更新。
 
 计划任务
 --------
 
-- 提取媒体信息（范围内）：对计划任务媒体库范围内的存量视频条目执行提取并写入 JSON。（已存在Json则恢复）
-- 提取媒体信息（最近入库）：对计划任务媒体库范围内的最近入库条目执行提取并写入 JSON（数量可配置）。（已存在Json则恢复）
-- 刷新媒体元数据（最近入库）：刷新最近入库条目的元数据后，从 JSON 导入媒体信息（可选覆盖或补全）。
-- 导出媒体信息（范围内）：对计划任务媒体库范围内已有 MediaInfo 的条目导出 JSON，无 MediaInfo 则跳过。
+- 刷新媒体元数据（最近入库）：刷新后从 JSON 导入 MediaInfo（可选覆盖或补全）。
+- 提取媒体信息（最近入库）：对最近入库条目执行提取或恢复并写入 JSON。
+- 提取媒体信息：对范围内存量条目执行提取或恢复并写入 JSON。
+- 导出媒体信息：对已有 MediaInfo 的条目导出 JSON。
+- 更新插件至最新版本
+
+安装
+----
+
+测试版本 4.9.1.90，4.8 系列不支持。
+
+1. 下载 `MediaInfoKeeper.dll`：<https://github.com/honue/MediaInfoKeeper/releases>
+2. 放入 Emby 配置目录中的 `plugins` 目录。
+3. 重启 Emby，在插件页面完成配置。
 
 感谢
 ----
 
-项目参考：<https://github.com/sjtuross/StrmAssistant>
+项目参考：
 
+<https://github.com/sjtuross/StrmAssistant>
+<https://github.com/xinjiawei/StrmAssistant_less>

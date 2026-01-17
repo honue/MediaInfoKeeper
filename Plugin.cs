@@ -51,10 +51,12 @@ namespace MediaInfoKeeper
         private readonly IFileSystem fileSystem;
         private readonly IUserManager userManager;
         private readonly ISessionManager sessionManager;
+        private readonly IApplicationHost applicationHost;
 
         internal static IProviderManager ProviderManager { get; private set; }
         internal static IFileSystem FileSystem { get; private set; }
         internal static ILibraryManager LibraryManager { get; private set; }
+        internal IApplicationHost AppHost => this.applicationHost;
 
         private bool currentPersistMediaInfo;
         internal readonly PluginOptionsStore OptionsStore;
@@ -62,6 +64,7 @@ namespace MediaInfoKeeper
         internal readonly GitHubOptionsStore GitHubOptionsStore;
         internal readonly IntroSkipOptionsStore IntroSkipOptionsStore;
         internal readonly ProxyOptionsStore ProxyOptionsStore;
+        internal readonly EnhanceChineseSearchOptionsStore EnhanceChineseSearchOptionsStore;
         private static readonly HttpClient HttpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(3)
@@ -88,6 +91,7 @@ namespace MediaInfoKeeper
             this.logger = logManager.GetLogger(this.Name);
             this.logger.Info($"插件 {this.Name} 正在加载");
 
+            this.applicationHost = applicationHost;
             this.libraryManager = libraryManager;
             this.providerManager = providerManager;
             this.itemRepository = itemRepository;
@@ -104,6 +108,7 @@ namespace MediaInfoKeeper
             GitHubOptionsStore = new GitHubOptionsStore(OptionsStore);
             IntroSkipOptionsStore = new IntroSkipOptionsStore(OptionsStore);
             ProxyOptionsStore = new ProxyOptionsStore(OptionsStore);
+            EnhanceChineseSearchOptionsStore = new EnhanceChineseSearchOptionsStore(OptionsStore);
 
             FfprobeGuard.Initialize(this.logger, this.Options.General.DisableSystemFfprobe);
             MetadataProvidersWatcher.Initialize(this.logger, this.Options.General.EnableMetadataProvidersWatcher);
@@ -111,6 +116,8 @@ namespace MediaInfoKeeper
             UnlockIntroSkip.Configure(this.Options);
             IntroMarkerProtect.Initialize(this.logger, this.Options.IntroSkip?.ProtectIntroMarkers ?? true);
             ProxyServer.Initialize(this.logger, this.Options.Proxy?.EnableProxyServer ?? false);
+            SearchScopeUtility.UpdateSearchScope(this.Options.EnhanceChineseSearch?.SearchScope);
+            EnhanceChineseSearch.Initialize(this.logger, this.Options.EnhanceChineseSearch);
 
             this.currentPersistMediaInfo = this.Options.General.PersistMediaInfoEnabled;
 
@@ -159,7 +166,8 @@ namespace MediaInfoKeeper
                     this.pages = new List<IPluginUIPageController>
                     {
                         new MainPageController(this.GetPluginInfo(), this.MainPageOptionsStore,
-                            this.GitHubOptionsStore, this.IntroSkipOptionsStore, this.ProxyOptionsStore)
+                            this.GitHubOptionsStore, this.IntroSkipOptionsStore, this.ProxyOptionsStore,
+                            this.EnhanceChineseSearchOptionsStore)
                     };
                 }
 
@@ -180,6 +188,8 @@ namespace MediaInfoKeeper
             options.IntroSkip ??= new IntroSkipOptions();
             options.Proxy ??= new ProxyOptions();
             options.GitHub ??= new GitHubOptions();
+            options.EnhanceChineseSearch ??= new EnhanceChineseSearchOptions();
+            options.EnhanceChineseSearch.Initialize();
 
             var list = new List<EditorSelectOption>();
             foreach (var folder in this.libraryManager.GetVirtualFolders())
@@ -233,6 +243,7 @@ namespace MediaInfoKeeper
             options.General ??= new GeneralOptions();
             options.LibraryScope ??= new LibraryScopeOptions();
             options.IntroSkip ??= new IntroSkipOptions();
+            options.EnhanceChineseSearch ??= new EnhanceChineseSearchOptions();
 
             this.currentPersistMediaInfo = options.General.PersistMediaInfoEnabled;
 
@@ -248,11 +259,15 @@ namespace MediaInfoKeeper
             this.logger.Info($"ProxyServerUrl 设置为 {(string.IsNullOrEmpty(options.Proxy.ProxyServerUrl) ? "EMPTY" : options.Proxy.ProxyServerUrl)}");
             this.logger.Info($"IgnoreCertificateValidation 设置为 {options.Proxy.IgnoreCertificateValidation}");
             this.logger.Info($"WriteProxyEnvVars 设置为 {options.Proxy.WriteProxyEnvVars}");
+            this.logger.Info($"EnhanceChineseSearch 设置为 {options.EnhanceChineseSearch.EnhanceChineseSearch}");
+            this.logger.Info($"ExcludeOriginalTitleFromSearch 设置为 {options.EnhanceChineseSearch.ExcludeOriginalTitleFromSearch}");
 
             FfprobeGuard.Configure(options.General.DisableSystemFfprobe);
             MetadataProvidersWatcher.Configure(options.General.EnableMetadataProvidersWatcher);
             UnlockIntroSkip.Configure(options);
             ProxyServer.Configure(options.Proxy.EnableProxyServer);
+            SearchScopeUtility.UpdateSearchScope(options.EnhanceChineseSearch.SearchScope);
+            EnhanceChineseSearch.Configure(options.EnhanceChineseSearch);
 
             if (options.IntroSkip.EnableIntroSkip)
             {

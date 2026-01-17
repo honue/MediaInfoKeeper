@@ -30,6 +30,9 @@ namespace MediaInfoKeeper.Configuration
         [DisplayName("Proxy")]
         public ProxyOptions Proxy { get; set; } = new ProxyOptions();
 
+        [DisplayName("Search")]
+        public EnhanceChineseSearchOptions EnhanceChineseSearch { get; set; } = new EnhanceChineseSearchOptions();
+
         [DisplayName("GitHub")]
         public GitHubOptions GitHub { get; set; } = new GitHubOptions();
     }

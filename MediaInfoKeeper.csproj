@@ -11,13 +11,18 @@
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Resources\\ThumbImage.png" />
+    <None Remove="Tokenizer\\linux\\libsimple.so" />
+    <None Remove="Tokenizer\\win\\simple.dll" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\\ThumbImage.png" />
+    <EmbeddedResource Include="Tokenizer\\linux\\libsimple.so" />
+    <EmbeddedResource Include="Tokenizer\\win\\simple.dll" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.90" />
     <PackageReference Include="Lib.Harmony" Version="2.4.1" />
+    <PackageReference Include="SQLitePCL.pretty.core" Version="1.2.2" />
     <PackageReference Include="ILRepack" Version="2.0.44" PrivateAssets="All" />
     <PackageReference Include="System.Memory" Version="4.6.3" />
   </ItemGroup>
