@@ -24,11 +24,11 @@ namespace MediaInfoKeeper.ScheduledTask
         }
         public string Key => "MediaInfoKeeperExportExistingMediaInfoTask";
 
-        public string Name => "导出媒体信息（范围内）";
+        public string Name => "4.导出媒体信息";
 
-        public string Description => "对计划任务范围内已存在 MediaInfo 的条目导出 JSON，无 MediaInfo 则跳过。";
+        public string Description => "对计划任务范围内！已存在 MediaInfo 的条目导出 JSON，无 MediaInfo 则跳过。";
 
-        public string Category => Plugin.PluginName;
+        public string Category => Plugin.TaskCategoryName;
 
         public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
         {

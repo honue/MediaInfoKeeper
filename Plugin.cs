@@ -33,6 +33,7 @@ namespace MediaInfoKeeper
     public class Plugin : BasePlugin, IHasThumbImage, IHasUIPages
     {
         public const string PluginName = "MediaInfoKeeper";
+        public const string TaskCategoryName = "Auto-MediaInfoKeeper";
 
         public static Plugin Instance { get; private set; }
         public static MediaInfoService MediaInfoService { get; private set; }

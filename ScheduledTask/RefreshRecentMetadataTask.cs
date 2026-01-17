@@ -27,11 +27,11 @@ namespace MediaInfoKeeper.ScheduledTask
         }
         public string Key => "MediaInfoKeeperRefreshRecentMetadataTask";
 
-        public string Name => "刷新媒体元数据（最近入库）";
+        public string Name => "1.刷新媒体元数据（最近入库）";
 
         public string Description => "全局媒体库范围内，刷新最近入库条目的元数据（可选覆盖或补全），之后会从 JSON 恢复媒体信息。";
 
-        public string Category => Plugin.PluginName;
+        public string Category => Plugin.TaskCategoryName;
 
         public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
         {

@@ -26,11 +26,11 @@ namespace MediaInfoKeeper.ScheduledTask
 
         public string Key => "MediaInfoKeeperExtractMediaInfoTask";
 
-        public string Name => "提取媒体信息（范围内）";
+        public string Name => "3.提取媒体信息";
 
-        public string Description => "对计划任务范围内的条目 恢复/提取 媒体信息并写入 JSON。（已存在则恢复）";
+        public string Description => "对计划任务范围内！的条目 恢复/提取 媒体信息并写入 JSON。（已存在则恢复）";
 
-        public string Category => Plugin.PluginName;
+        public string Category => Plugin.TaskCategoryName;
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {

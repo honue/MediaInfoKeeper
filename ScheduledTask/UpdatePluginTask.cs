@@ -16,6 +16,8 @@ using System.Threading.Tasks;
 
 namespace MediaInfoKeeper.ScheduledTask
 {
+
+
     public class UpdatePluginTask : IScheduledTask
     {
         private readonly ILogger logger;
@@ -25,6 +27,16 @@ namespace MediaInfoKeeper.ScheduledTask
         private readonly IJsonSerializer jsonSerializer;
         private readonly IActivityManager activityManager;
         private readonly IServerApplicationHost serverApplicationHost;
+        private static string PluginAssemblyFilename => Assembly.GetExecutingAssembly().GetName().Name + ".dll";
+        private static string RepoReleaseUrl => "https://api.github.com/repos/honue/MediaInfoKeeper/releases/latest";
+
+        public string Key => "UpdatePluginTask";
+
+        public string Name => "5.更新插件";
+
+        public string Description => "更新插件至最新版本";
+
+        public string Category => Plugin.TaskCategoryName;
 
         public UpdatePluginTask(
             IApplicationHost applicationHost,
@@ -43,16 +55,6 @@ namespace MediaInfoKeeper.ScheduledTask
             this.serverApplicationHost = serverApplicationHost;
         }
 
-        private static string PluginAssemblyFilename => Assembly.GetExecutingAssembly().GetName().Name + ".dll";
-        private static string RepoReleaseUrl => "https://api.github.com/repos/honue/MediaInfoKeeper/releases/latest";
-
-        public string Key => "UpdatePluginTask";
-
-        public string Name => "更新插件";
-
-        public string Description => "更新插件至最新版本";
-
-        public string Category => Plugin.PluginName;
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {

@@ -26,11 +26,11 @@ namespace MediaInfoKeeper.ScheduledTask
 
         public string Key => "MediaInfoKeeperExtractRecentMediaInfoTask";
 
-        public string Name => "提取媒体信息（最近入库）";
+        public string Name => "2.提取媒体信息（最近入库）";
 
         public string Description => "对最近入库条目 恢复/提取 媒体信息并写入 JSON。（已存在则恢复）";
 
-        public string Category => Plugin.PluginName;
+        public string Category => Plugin.TaskCategoryName;
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {
