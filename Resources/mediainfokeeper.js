@@ -49,32 +49,48 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
             : (['zh-hk', 'zh-tw'].includes(locale) ? '掃描片頭' : 'Scan Intro');
     }
 
+    function getSetIntroCommandName() {
+        const locale = (globalize.getCurrentLocale() || '').toLowerCase();
+        return locale === 'zh-cn'
+            ? '设置片头'
+            : (['zh-hk', 'zh-tw'].includes(locale) ? '設置片頭' : 'Set Intro');
+    }
+
+    function getClearIntroCommandName() {
+        const locale = (globalize.getCurrentLocale() || '').toLowerCase();
+        return locale === 'zh-cn'
+            ? '清除片头'
+            : (['zh-hk', 'zh-tw'].includes(locale) ? '清除片頭' : 'Clear Intro');
+    }
+
     function getResultMessage(result, action) {
         const normalized = normalizeResult(result);
         const isDelete = action === 'delete';
         const isScanIntro = action === 'scan_intro';
+        const isSetIntro = action === 'set_intro';
+        const isClearIntro = action === 'clear_intro';
         if (!result) {
-            return (isDelete ? getDeleteCommandName() : (isScanIntro ? getScanIntroCommandName() : getCommandName())) + ' finished';
+            return (isDelete ? getDeleteCommandName() : (isScanIntro ? getScanIntroCommandName() : (isSetIntro ? getSetIntroCommandName() : (isClearIntro ? getClearIntroCommandName() : getCommandName())))) + ' finished';
         }
 
         const locale = (globalize.getCurrentLocale() || '').toLowerCase();
         if (!normalized.hasStats) {
             if (locale === 'zh-cn') {
-                return (isDelete ? '删除完成' : (isScanIntro ? '扫描完成' : '提取完成')) + '（返回体无统计字段，请看日志）';
+                return (isDelete ? '删除完成' : (isScanIntro ? '扫描完成' : (isSetIntro ? '设置完成' : (isClearIntro ? '清除完成' : '提取完成')))) + '（返回体无统计字段，请看日志）';
             }
             if (['zh-hk', 'zh-tw'].includes(locale)) {
-                return (isDelete ? '刪除完成' : (isScanIntro ? '掃描完成' : '提取完成')) + '（返回體無統計字段，請看日誌）';
+                return (isDelete ? '刪除完成' : (isScanIntro ? '掃描完成' : (isSetIntro ? '設置完成' : (isClearIntro ? '清除完成' : '提取完成')))) + '（返回體無統計字段，請看日誌）';
             }
             return 'Completed (no stats in response, check server logs)';
         }
 
         if (locale === 'zh-cn') {
-            const prefix = isDelete ? '删除完成' : (isScanIntro ? '扫描完成' : '提取完成');
+            const prefix = isDelete ? '删除完成' : (isScanIntro ? '扫描完成' : (isSetIntro ? '设置完成' : (isClearIntro ? '清除完成' : '提取完成')));
             return prefix + `：成功 ${normalized.succeeded}，失败 ${normalized.failed}，跳过 ${normalized.skipped}`;
         }
 
         if (['zh-hk', 'zh-tw'].includes(locale)) {
-            const prefix = isDelete ? '刪除完成' : (isScanIntro ? '掃描完成' : '提取完成');
+            const prefix = isDelete ? '刪除完成' : (isScanIntro ? '掃描完成' : (isSetIntro ? '設置完成' : (isClearIntro ? '清除完成' : '提取完成')));
             return prefix + `：成功 ${normalized.succeeded}，失敗 ${normalized.failed}，跳過 ${normalized.skipped}`;
         }
 
@@ -187,7 +203,9 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
     function getErrorMessage(action, err) {
         const isDelete = action === 'delete';
         const isScanIntro = action === 'scan_intro';
-        const commandName = isDelete ? getDeleteCommandName() : (isScanIntro ? getScanIntroCommandName() : getCommandName());
+        const isSetIntro = action === 'set_intro';
+        const isClearIntro = action === 'clear_intro';
+        const commandName = isDelete ? getDeleteCommandName() : (isScanIntro ? getScanIntroCommandName() : (isSetIntro ? getSetIntroCommandName() : (isClearIntro ? getClearIntroCommandName() : getCommandName())));
         const detail = (err && (err.message || err.statusText || err.responseText)) ? ` (${err.message || err.statusText || err.responseText})` : '';
         return commandName + ' failed' + detail;
     }
@@ -276,6 +294,143 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
                     loading.hide();
                 });
             });
+        },
+
+        setIntro: function (ids) {
+            if (!ids || !ids.length) {
+                return Promise.resolve();
+            }
+
+            const commandName = getSetIntroCommandName();
+            const locale = (globalize.getCurrentLocale() || '').toLowerCase();
+            
+            function timeToSeconds(timeStr) {
+                const parts = timeStr.split(':');
+                if (parts.length === 3) {
+                    const hours = parseFloat(parts[0]) || 0;
+                    const minutes = parseFloat(parts[1]) || 0;
+                    const seconds = parseFloat(parts[2]) || 0;
+                    return hours * 3600 + minutes * 60 + seconds;
+                }
+                return 0;
+            }
+            
+            return new Promise(function (resolve) {
+                const dialogHtml = `
+                    <div class="dialogContainer" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+                        <div class="formDialogContent smoothScrollY" style="background: #101010; border-radius: 8px; padding: 24px; max-width: 90%; width: 500px; max-height: 90vh; overflow-y: auto;">
+                            <h3 style="margin: 0 0 20px 0; color: #fff; font-size: 1.5em;">${locale === 'zh-cn' ? '设置片头时间' : (['zh-hk', 'zh-tw'].includes(locale) ? '設置片頭時間' : 'Set Intro Time')}</h3>
+                            <div class="inputContainer" style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; color: #fff; font-size: 0.9em;">${locale === 'zh-cn' ? '片头开始时间' : (['zh-hk', 'zh-tw'].includes(locale) ? '片頭開始時間' : 'Intro Start Time')}</label>
+                                <input type="text" id="introStartTime" class="emby-input" value="00:00:00.000" placeholder="00:00:00.000" style="width: 100%; padding: 10px; background: #1f1f1f; border: 1px solid #333; color: #fff; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                            </div>
+                            <div class="inputContainer" style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; color: #fff; font-size: 0.9em;">${locale === 'zh-cn' ? '片头结束时间' : (['zh-hk', 'zh-tw'].includes(locale) ? '片頭結束時間' : 'Intro End Time')}</label>
+                                <input type="text" id="introEndTime" class="emby-input" value="00:00:00.000" placeholder="00:00:00.000" style="width: 100%; padding: 10px; background: #1f1f1f; border: 1px solid #333; color: #fff; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                            </div>
+                            <div style="margin-top: 24px; display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button id="cancelSetIntro" class="emby-button emby-button-cancel" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #333; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">${globalize.translate('Cancel')}</button>
+                                <button id="confirmSetIntro" class="emby-button emby-button-submit" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #00a4dc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">${commandName}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const dialog = document.createElement('div');
+                dialog.innerHTML = dialogHtml;
+                document.body.appendChild(dialog);
+
+                const cancelBtn = dialog.querySelector('#cancelSetIntro');
+                const confirmBtn = dialog.querySelector('#confirmSetIntro');
+                const startInput = dialog.querySelector('#introStartTime');
+                const endInput = dialog.querySelector('#introEndTime');
+
+                cancelBtn.addEventListener('click', function () {
+                    document.body.removeChild(dialog);
+                    resolve();
+                });
+
+                confirmBtn.addEventListener('click', function () {
+                    const startSeconds = timeToSeconds(startInput.value);
+                    const endSeconds = timeToSeconds(endInput.value);
+
+                    if (startSeconds >= endSeconds) {
+                        toast(locale === 'zh-cn' ? '开始时间必须小于结束时间' : (['zh-hk', 'zh-tw'].includes(locale) ? '開始時間必須小於結束時間' : 'Start time must be less than end time'));
+                        return;
+                    }
+
+                    const introStartTicks = Math.round(startSeconds * 10000000);
+                    const introEndTicks = Math.round(endSeconds * 10000000);
+
+                    document.body.removeChild(dialog);
+                    loading.show();
+                    const apiClient = connectionManager.currentApiClient();
+                    return postJson(apiClient, 'MediaInfoKeeper/Items/SetIntro', { 
+                        Ids: ids, 
+                        IntroStartTicks: introStartTicks, 
+                        IntroEndTicks: introEndTicks 
+                    }).then(function (result) {
+                        toast(getResultMessage(result, 'set_intro'));
+                        resolve();
+                    }).catch(function (err) {
+                        toast(getErrorMessage('set_intro', err));
+                        resolve();
+                    }).finally(function () {
+                        loading.hide();
+                    });
+                });
+            });
+        },
+
+        clearIntro: function (ids) {
+            if (!ids || !ids.length) {
+                return Promise.resolve();
+            }
+
+            const commandName = getClearIntroCommandName();
+            const locale = (globalize.getCurrentLocale() || '').toLowerCase();
+            
+            return new Promise(function (resolve) {
+                const dialogHtml = `
+                    <div class="dialogContainer" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+                        <div class="formDialogContent smoothScrollY" style="background: #101010; border-radius: 8px; padding: 24px; max-width: 90%; width: 500px; max-height: 90vh; overflow-y: auto;">
+                            <h3 style="margin: 0 0 20px 0; color: #fff; font-size: 1.5em;">${locale === 'zh-cn' ? '清除片头' : (['zh-hk', 'zh-tw'].includes(locale) ? '清除片頭' : 'Clear Intro')}</h3>
+                            <p style="margin: 0 0 24px 0; color: #ccc; font-size: 14px;">${locale === 'zh-cn' ? '确定要清除选中项目的片头标记吗？' : (['zh-hk', 'zh-tw'].includes(locale) ? '確定要清除選中項目的片頭標記嗎？' : 'Are you sure you want to clear intro markers for selected items?')}</p>
+                            <div style="margin-top: 24px; display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button id="cancelClearIntro" class="emby-button emby-button-cancel" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #333; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">${globalize.translate('Cancel')}</button>
+                                <button id="confirmClearIntro" class="emby-button emby-button-submit" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #00a4dc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">${commandName}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const dialog = document.createElement('div');
+                dialog.innerHTML = dialogHtml;
+                document.body.appendChild(dialog);
+
+                const cancelBtn = dialog.querySelector('#cancelClearIntro');
+                const confirmBtn = dialog.querySelector('#confirmClearIntro');
+
+                cancelBtn.addEventListener('click', function () {
+                    document.body.removeChild(dialog);
+                    resolve();
+                });
+
+                confirmBtn.addEventListener('click', function () {
+                    document.body.removeChild(dialog);
+                    loading.show();
+                    const apiClient = connectionManager.currentApiClient();
+                    return postJson(apiClient, 'MediaInfoKeeper/Items/ClearIntro', { Ids: ids }).then(function (result) {
+                        toast(getResultMessage(result, 'clear_intro'));
+                        resolve();
+                    }).catch(function (err) {
+                        toast(getErrorMessage('clear_intro', err));
+                        resolve();
+                    }).finally(function () {
+                        loading.hide();
+                    });
+                });
+            });
         }
     };
 
@@ -293,6 +448,8 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
                 const introSupportedTypes = { Episode: true, Season: true, Series: true };
                 if (items.every(item => introSupportedTypes[item.Type])) {
                     commands.push({ name: getScanIntroCommandName(), id: 'scan_intro', icon: 'graphic_eq' });
+                    commands.push({ name: getSetIntroCommandName(), id: 'set_intro', icon: 'schedule' });
+                    commands.push({ name: getClearIntroCommandName(), id: 'clear_intro', icon: 'clear' });
                 }
 
                 commands.push({ name: getDeleteCommandName(), id: 'delete_media_info_persist', icon: 'delete_forever' });
@@ -318,6 +475,14 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
 
                 if (command === 'scan_intro') {
                     return api.scanIntro(ids);
+                }
+
+                if (command === 'set_intro') {
+                    return api.setIntro(ids);
+                }
+
+                if (command === 'clear_intro') {
+                    return api.clearIntro(ids);
                 }
             }
         };
