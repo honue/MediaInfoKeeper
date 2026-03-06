@@ -19,6 +19,8 @@ namespace MediaInfoKeeper.Web
         private readonly ExtractMediaInfoRouteHandler _extractHandler;
         private readonly DeleteMediaInfoPersistRouteHandler _deletePersistHandler;
         private readonly ScanIntroRouteHandler _scanIntroHandler;
+        private readonly SetIntroRouteHandler _setIntroHandler;
+        private readonly ClearIntroRouteHandler _clearIntroHandler;
 
         public ShortcutMenuService(
             IHttpResultFactory resultFactory,
@@ -30,6 +32,8 @@ namespace MediaInfoKeeper.Web
             _extractHandler = new ExtractMediaInfoRouteHandler(ExpandToTargetItems);
             _deletePersistHandler = new DeleteMediaInfoPersistRouteHandler(ExpandToTargetItems, libraryManager, itemRepository);
             _scanIntroHandler = new ScanIntroRouteHandler(ExpandToTargetItems);
+            _setIntroHandler = new SetIntroRouteHandler(ExpandToTargetItems, libraryManager, itemRepository);
+            _clearIntroHandler = new ClearIntroRouteHandler(ExpandToTargetItems, libraryManager, itemRepository);
         }
 
         public IRequest Request { get; set; }
@@ -59,6 +63,16 @@ namespace MediaInfoKeeper.Web
         public MediaInfoMenuResponse Post(ScanIntroRequest request)
         {
             return _scanIntroHandler.Handle(request);
+        }
+
+        public MediaInfoMenuResponse Post(SetIntroRequest request)
+        {
+            return _setIntroHandler.Handle(request);
+        }
+
+        public MediaInfoMenuResponse Post(ClearIntroRequest request)
+        {
+            return _clearIntroHandler.Handle(request);
         }
 
         private List<BaseItem> ExpandToTargetItems(IEnumerable<string> ids)
