@@ -40,6 +40,22 @@ namespace MediaInfoKeeper.Web
         public string[] Ids { get; set; }
     }
 
+    [Route("/MediaInfoKeeper/Items/SetIntro", "POST")]
+    [Authenticated(Roles = "Admin")]
+    public class SetIntroRequest : IReturn<MediaInfoMenuResponse>
+    {
+        public string[] Ids { get; set; }
+        public long IntroStartTicks { get; set; }
+        public long IntroEndTicks { get; set; }
+    }
+
+    [Route("/MediaInfoKeeper/Items/ClearIntro", "POST")]
+    [Authenticated(Roles = "Admin")]
+    public class ClearIntroRequest : IReturn<MediaInfoMenuResponse>
+    {
+        public string[] Ids { get; set; }
+    }
+
     public class MediaInfoMenuResponse
     {
         public int Total { get; set; }
