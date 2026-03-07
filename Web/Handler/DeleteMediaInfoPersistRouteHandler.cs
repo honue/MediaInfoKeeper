@@ -6,8 +6,6 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
-using MediaInfoKeeper.Services;
-using MediaInfoKeeper.Web;
 
 namespace MediaInfoKeeper.Web.Handler
 {
@@ -101,7 +99,6 @@ namespace MediaInfoKeeper.Web.Handler
             }
 
             Plugin.MediaInfoService.DeleteMediaInfoJson(video, directoryService, "ShortcutMenu");
-            Plugin.IntroSkipChapterApi.RemoveIntroMarkers(video);
 
             _itemRepository.SaveMediaStreams(video.InternalId, new List<MediaStream>(), CancellationToken.None);
             video.MediaStreams = new List<MediaStream>();

@@ -38,8 +38,8 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
     function getDeleteCommandName() {
         const locale = (globalize.getCurrentLocale() || '').toLowerCase();
         return locale === 'zh-cn'
-            ? '删除媒体信息及片头'
-            : (['zh-hk', 'zh-tw'].includes(locale) ? '刪除媒體信息及片頭' : 'Delete MediaInfo + Persist');
+            ? '删除媒体信息'
+            : (['zh-hk', 'zh-tw'].includes(locale) ? '刪除媒體信息' : 'Delete MediaInfo');
     }
 
     function getScanIntroCommandName() {
@@ -223,6 +223,78 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
         });
     }
 
+    function ticksToTimeString(ticks) {
+        const ticksNumber = Number(ticks);
+        if (!Number.isFinite(ticksNumber) || ticksNumber < 0) {
+            return null;
+        }
+
+        const totalMilliseconds = Math.floor(ticksNumber / 10000);
+        const hours = Math.floor(totalMilliseconds / 3600000);
+        const minutes = Math.floor((totalMilliseconds % 3600000) / 60000);
+        const seconds = Math.floor((totalMilliseconds % 60000) / 1000);
+        const milliseconds = totalMilliseconds % 1000;
+
+        const hh = String(hours).padStart(2, '0');
+        const mm = String(minutes).padStart(2, '0');
+        const ss = String(seconds).padStart(2, '0');
+        const mmm = String(milliseconds).padStart(3, '0');
+        return `${hh}:${mm}:${ss}.${mmm}`;
+    }
+
+    function getIntroTicksFromItem(item) {
+        if (!item || !Array.isArray(item.Chapters)) {
+            return null;
+        }
+
+        let introStartTicks = null;
+        let introEndTicks = null;
+
+        for (const chapter of item.Chapters) {
+            if (!chapter || chapter.StartPositionTicks == null) {
+                continue;
+            }
+
+            if (chapter.MarkerType === 'IntroStart' || chapter.MarkerType === 7) {
+                introStartTicks = chapter.StartPositionTicks;
+            } else if (chapter.MarkerType === 'IntroEnd' || chapter.MarkerType === 8) {
+                introEndTicks = chapter.StartPositionTicks;
+            }
+        }
+
+        if (introStartTicks == null && introEndTicks == null) {
+            return null;
+        }
+
+        return { introStartTicks, introEndTicks };
+    }
+
+    function getExistingIntroTicks(apiClient, episodeItem) {
+        const fromCurrentItem = getIntroTicksFromItem(episodeItem);
+        if (fromCurrentItem) {
+            return Promise.resolve(fromCurrentItem);
+        }
+
+        if (!episodeItem || !episodeItem.Id) {
+            return Promise.resolve(null);
+        }
+
+        const userId = typeof apiClient.getCurrentUserId === 'function' ? apiClient.getCurrentUserId() : null;
+        const endpoint = userId ? `Users/${userId}/Items/${episodeItem.Id}` : `Items/${episodeItem.Id}`;
+        const query = new URLSearchParams({ Fields: 'Chapters' }).toString();
+        const url = `${apiClient.getUrl(endpoint)}?${query}`;
+
+        return apiClient.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json'
+        }).then(function (item) {
+            return getIntroTicksFromItem(item);
+        }).catch(function () {
+            return null;
+        });
+    }
+
     const api = {
         extractMediaInfo: function (ids) {
             if (!ids || !ids.length) {
@@ -296,13 +368,15 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
             });
         },
 
-        setIntro: function (ids) {
+        setIntro: function (ids, items) {
             if (!ids || !ids.length) {
                 return Promise.resolve();
             }
 
             const commandName = getSetIntroCommandName();
             const locale = (globalize.getCurrentLocale() || '').toLowerCase();
+            const selectedItems = Array.isArray(items) ? items.filter(Boolean) : [];
+            const defaultTimeValue = '00:00:00.000';
             
             function timeToSeconds(timeStr) {
                 const parts = timeStr.split(':');
@@ -322,15 +396,15 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
                             <h3 style="margin: 0 0 20px 0; color: #fff; font-size: 1.5em;">${locale === 'zh-cn' ? '设置片头时间' : (['zh-hk', 'zh-tw'].includes(locale) ? '設置片頭時間' : 'Set Intro Time')}</h3>
                             <div class="inputContainer" style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; color: #fff; font-size: 0.9em;">${locale === 'zh-cn' ? '片头开始时间' : (['zh-hk', 'zh-tw'].includes(locale) ? '片頭開始時間' : 'Intro Start Time')}</label>
-                                <input type="text" id="introStartTime" class="emby-input" value="00:00:00.000" placeholder="00:00:00.000" style="width: 100%; padding: 10px; background: #1f1f1f; border: 1px solid #333; color: #fff; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                                <input type="text" id="introStartTime" class="emby-input" value="${defaultTimeValue}" placeholder="${defaultTimeValue}" style="width: 100%; padding: 10px; background: #1f1f1f; border: 1px solid #333; color: #fff; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
                             </div>
                             <div class="inputContainer" style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; color: #fff; font-size: 0.9em;">${locale === 'zh-cn' ? '片头结束时间' : (['zh-hk', 'zh-tw'].includes(locale) ? '片頭結束時間' : 'Intro End Time')}</label>
-                                <input type="text" id="introEndTime" class="emby-input" value="00:00:00.000" placeholder="00:00:00.000" style="width: 100%; padding: 10px; background: #1f1f1f; border: 1px solid #333; color: #fff; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
+                                <input type="text" id="introEndTime" class="emby-input" value="${defaultTimeValue}" placeholder="${defaultTimeValue}" style="width: 100%; padding: 10px; background: #1f1f1f; border: 1px solid #333; color: #fff; border-radius: 4px; font-size: 16px; box-sizing: border-box;">
                             </div>
                             <div style="margin-top: 24px; display: flex; gap: 10px; flex-wrap: wrap;">
-                                <button id="cancelSetIntro" class="emby-button emby-button-cancel" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #333; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">${globalize.translate('Cancel')}</button>
-                                <button id="confirmSetIntro" class="emby-button emby-button-submit" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #00a4dc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">${commandName}</button>
+                                <button id="cancelSetIntro" class="emby-button emby-button-cancel" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #333; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; justify-content: center; align-items: center;">${globalize.translate('Cancel')}</button>
+                                <button id="confirmSetIntro" class="emby-button emby-button-submit" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #53B54C; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; justify-content: center; align-items: center;">${commandName}</button>
                             </div>
                         </div>
                     </div>
@@ -344,6 +418,30 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
                 const confirmBtn = dialog.querySelector('#confirmSetIntro');
                 const startInput = dialog.querySelector('#introStartTime');
                 const endInput = dialog.querySelector('#introEndTime');
+                const shouldPrefill = selectedItems.length === 1 && selectedItems[0].Type === 'Episode';
+
+                if (shouldPrefill) {
+                    const apiClient = connectionManager.currentApiClient();
+                    getExistingIntroTicks(apiClient, selectedItems[0]).then(function (introTicks) {
+                        if (!introTicks) {
+                            return;
+                        }
+
+                        if (introTicks.introStartTicks != null && startInput.value === defaultTimeValue) {
+                            const formattedStart = ticksToTimeString(introTicks.introStartTicks);
+                            if (formattedStart) {
+                                startInput.value = formattedStart;
+                            }
+                        }
+
+                        if (introTicks.introEndTicks != null && endInput.value === defaultTimeValue) {
+                            const formattedEnd = ticksToTimeString(introTicks.introEndTicks);
+                            if (formattedEnd) {
+                                endInput.value = formattedEnd;
+                            }
+                        }
+                    });
+                }
 
                 cancelBtn.addEventListener('click', function () {
                     document.body.removeChild(dialog);
@@ -397,8 +495,8 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
                             <h3 style="margin: 0 0 20px 0; color: #fff; font-size: 1.5em;">${locale === 'zh-cn' ? '清除片头' : (['zh-hk', 'zh-tw'].includes(locale) ? '清除片頭' : 'Clear Intro')}</h3>
                             <p style="margin: 0 0 24px 0; color: #ccc; font-size: 14px;">${locale === 'zh-cn' ? '确定要清除选中项目的片头标记吗？' : (['zh-hk', 'zh-tw'].includes(locale) ? '確定要清除選中項目的片頭標記嗎？' : 'Are you sure you want to clear intro markers for selected items?')}</p>
                             <div style="margin-top: 24px; display: flex; gap: 10px; flex-wrap: wrap;">
-                                <button id="cancelClearIntro" class="emby-button emby-button-cancel" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #333; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">${globalize.translate('Cancel')}</button>
-                                <button id="confirmClearIntro" class="emby-button emby-button-submit" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #00a4dc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">${commandName}</button>
+                                <button id="cancelClearIntro" class="emby-button emby-button-cancel" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #333; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; justify-content: center; align-items: center;">${globalize.translate('Cancel')}</button>
+                                <button id="confirmClearIntro" class="emby-button emby-button-submit" style="flex: 1; min-width: 100px; padding: 12px 20px; background: #00a4dc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; justify-content: center; align-items: center;">${commandName}</button>
                             </div>
                         </div>
                     </div>
@@ -444,15 +542,15 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
 
                 const commands = [];
                 commands.push({ name: getCommandName(), id: 'extract_media_info', icon: '4k' });
+                commands.push({ name: getDeleteCommandName(), id: 'delete_media_info_persist', icon: 'delete_forever' });
 
                 const introSupportedTypes = { Episode: true, Season: true, Series: true };
                 if (items.every(item => introSupportedTypes[item.Type])) {
                     commands.push({ name: getScanIntroCommandName(), id: 'scan_intro', icon: 'graphic_eq' });
                     commands.push({ name: getSetIntroCommandName(), id: 'set_intro', icon: 'schedule' });
-                    commands.push({ name: getClearIntroCommandName(), id: 'clear_intro', icon: 'clear' });
+                    commands.push({ name: getClearIntroCommandName(), id: 'clear_intro', icon: 'delete_forever' });
                 }
 
-                commands.push({ name: getDeleteCommandName(), id: 'delete_media_info_persist', icon: 'delete_forever' });
                 return commands;
             },
             executeCommand: function (command, items) {
@@ -478,7 +576,7 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
                 }
 
                 if (command === 'set_intro') {
-                    return api.setIntro(ids);
+                    return api.setIntro(ids, items);
                 }
 
                 if (command === 'clear_intro') {

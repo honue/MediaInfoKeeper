@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using MediaBrowser.Controller.Entities;
 using MediaInfoKeeper.Patch;
 using MediaInfoKeeper.Services;
-using MediaInfoKeeper.Web;
 
 namespace MediaInfoKeeper.Web.Handler
 {

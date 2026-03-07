@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using MediaInfoKeeper.Patch;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Entities.TV;

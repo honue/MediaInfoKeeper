@@ -2,10 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
-using MediaInfoKeeper.Web;
 using MediaInfoKeeper.Services.IntroSkip;
 
 namespace MediaInfoKeeper.Web.Handler

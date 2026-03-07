@@ -21,7 +21,6 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Session;
-using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Model.Drawing;
 using MediaBrowser.Model.IO;
