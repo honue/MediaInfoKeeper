@@ -168,6 +168,38 @@ namespace MediaInfoKeeper.Options
         [Description("调整新建媒体库默认设置：TMDB 优先且独占启用，图片保存到媒体文件夹，字幕下载器默认关闭，章节自动生成默认关闭，语言地区默认中国中文。")]
         public bool EnableLibrayProviderSettings { get; set; } = true;
 
+        [DisplayName("自动合并多版本")]
+        [Description("开启后自动合并相同电影/电视剧的多个版本，支持跨库操作。\n\n保存后会自动为所有电视剧库开启 Emby 的自动剧集分组。")]
+        public bool MergeMultiVersion { get; set; } = false;
+
+        public enum MergeMoviesScopeOption
+        {
+            [Description("同文件夹")]
+            FolderScope,
+            [Description("同媒体库内")]
+            LibraryScope,
+            [Description("所有电影库")]
+            GlobalScope
+        }
+
+        [DisplayName("电影合并范围")]
+        [Description("同文件夹：仅合并同文件夹下的多版本；同媒体库内：合并当前库内相同电影；所有电影库：在所有电影/混合库中查找并合并。")]
+        [VisibleCondition(nameof(MergeMultiVersion), SimpleCondition.IsTrue)]
+        public MergeMoviesScopeOption MergeMoviesPreference { get; set; } = MergeMoviesScopeOption.FolderScope;
+
+        public enum MergeSeriesScopeOption
+        {
+            [Description("同媒体库内")]
+            LibraryScope,
+            [Description("所有电视剧库")]
+            GlobalScope
+        }
+
+        [DisplayName("电视剧合并范围")]
+        [Description("同媒体库内：仅合并当前库内的相同剧集；所有电视剧库：在所有电视剧/混合库中查找并合并。\n\n选择所有电视剧库时，保存后插件会自动开启所有电视剧/混合库的 Emby 自动剧集分组选项。")]
+        [VisibleCondition(nameof(MergeMultiVersion), SimpleCondition.IsTrue)]
+        public MergeSeriesScopeOption MergeSeriesPreference { get; set; } = MergeSeriesScopeOption.LibraryScope;
+
         [DisplayName("日志来源黑名单")]
         [Description("按 logger.Name 匹配需要屏蔽的系统日志来源，支持逗号、分号或换行分隔。支持精确匹配；对于带动态后缀的来源可填写前缀，如 SessionsService-。")]
         public string SystemLogNameBlacklist { get; set; } = "HttpClient;TheMovieDb;SessionsService-;PlaystateService-;MediaInfoService-";
@@ -278,6 +310,11 @@ namespace MediaInfoKeeper.Options
             AddGroup("通知", "", 
                 nameof(EnableNotificationEnhance),
                 nameof(TakeOverSystemLibraryNew));
+            
+            AddGroup("多版本合并", "",
+                nameof(MergeMultiVersion),
+                nameof(MergeMoviesPreference),
+                nameof(MergeSeriesPreference));
             
             AddGroup("UI功能", "",
                 nameof(EnableEpisodeImageAspectRatioOptimize),

@@ -28,13 +28,19 @@ using MediaBrowser.Controller.Session;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Model.Activity;
+using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Drawing;
+using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Events;
 using MediaBrowser.Model.Globalization;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Plugins.UI;
 using MediaBrowser.Model.Serialization;
+using MediaBrowser.Model.Tasks;
 using MediaInfoKeeper.Web;
+using MediaInfoKeeper.ScheduledTask;
+using static MediaInfoKeeper.Options.EnhanceOptions;
 
 namespace MediaInfoKeeper
 {
@@ -77,6 +83,7 @@ namespace MediaInfoKeeper
         private readonly ISessionManager sessionManager;
         private readonly IMediaMountManager mediaMountManager;
         private readonly IApplicationHost applicationHost;
+        private readonly ITaskManager taskManager;
         private readonly ReleaseInfoService releaseInfoService;
 
         internal static IProviderManager ProviderManager { get; private set; }
@@ -135,6 +142,7 @@ namespace MediaInfoKeeper
             this.userDataManager = userDataManager;
             this.sessionManager = sessionManager;
             this.mediaMountManager = mediaMountManager;
+            this.taskManager = applicationHost.Resolve<ITaskManager>();
             this.releaseInfoService = new ReleaseInfoService(httpClient, this.logger, () => this.Options);
             ReleaseInfoService = this.releaseInfoService;
             ProviderManager = providerManager;
@@ -201,6 +209,8 @@ namespace MediaInfoKeeper
             this.libraryManager.ItemAdded += this.OnItemAdded;
             this.libraryManager.ItemRemoved += this.OnItemRemoved;
             this.userDataManager.UserDataSaved += this.OnUserDataSaved;
+            this.providerManager.RefreshCompleted += this.OnRefreshCompleted;
+            CollectionFolder.LibraryOptionsUpdated += this.OnLibraryOptionsUpdated;
 
             this.logger.Info($"插件 {this.Name} 加载完成");
         }
@@ -814,6 +824,68 @@ namespace MediaInfoKeeper
             MediaInfoDocument.DeleteMediaInfoJson(e.Item, new DirectoryService(this.logger, this.fileSystem), "Item Removed Event");
         }
 
+        private void OnRefreshCompleted(object sender, GenericEventArgs<RefreshProgressInfo> e)
+        {
+            if (this.libraryManager.IsScanRunning)
+            {
+                return;
+            }
+
+            var options = this.Options;
+            var item = e.Argument.Item;
+            if (!(options.Enhance?.MergeMultiVersion == true && item.IsTopParent))
+            {
+                return;
+            }
+
+            if (MergeMultiVersionTask.IsInternalRefresh(item.InternalId))
+            {
+                return;
+            }
+
+            var library = e.Argument.CollectionFolders.OfType<CollectionFolder>().FirstOrDefault();
+
+            if (library == null)
+            {
+                return;
+            }
+
+            var mergeSeriesPreference = options.Enhance.MergeSeriesPreference;
+            if (!(library.CollectionType == CollectionType.Movies.ToString() ||
+                  library.CollectionType == CollectionType.TvShows.ToString() &&
+                  mergeSeriesPreference == MergeSeriesScopeOption.GlobalScope ||
+                  library.CollectionType is null))
+            {
+                return;
+            }
+
+            MergeMultiVersionTask.currentScanLibrary.Value = library;
+
+            var mergeMoviesTask = this.taskManager.ScheduledTasks.FirstOrDefault(t =>
+                t.ScheduledTask is MergeMultiVersionTask);
+
+            if (mergeMoviesTask != null && MergeMultiVersionTask.TryBeginTriggeredExecution())
+            {
+                _ = this.taskManager.Execute(mergeMoviesTask, new TaskOptions());
+            }
+        }
+
+        private void OnLibraryOptionsUpdated(object sender, GenericEventArgs<Tuple<CollectionFolder, LibraryOptions>> e)
+        {
+            if (this.Options.Enhance?.MergeMultiVersion != true)
+            {
+                return;
+            }
+
+            var library = e.Argument.Item1;
+
+            if (library.CollectionType == CollectionType.TvShows.ToString() ||
+                library.CollectionType is null)
+            {
+                LibraryService.EnsureLibraryEnabledAutomaticSeriesGrouping();
+            }
+        }
+
         private string GetCurrentVersion()
         {
             var releaseTag = GetAssemblyReleaseTag(this.GetType().Assembly);
@@ -885,6 +957,8 @@ namespace MediaInfoKeeper
             this.libraryManager.ItemAdded -= this.OnItemAdded;
             this.libraryManager.ItemRemoved -= this.OnItemRemoved;
             this.userDataManager.UserDataSaved -= this.OnUserDataSaved;
+            this.providerManager.RefreshCompleted -= this.OnRefreshCompleted;
+            CollectionFolder.LibraryOptionsUpdated -= this.OnLibraryOptionsUpdated;
             this.releaseInfoService.Dispose();
             PrefetchService?.Dispose();
             StrmFileWatcher?.Dispose();

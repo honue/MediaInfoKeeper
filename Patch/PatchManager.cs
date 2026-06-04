@@ -556,6 +556,33 @@ namespace MediaInfoKeeper.Patch
 
             registrations.Add(new PatchRegistration
             {
+                Name = "MergeMultiVersion",
+                Initialize = options =>
+                {
+                    options.Enhance ??= new EnhanceOptions();
+                    MergeMultiVersion.Initialize(
+                        logger,
+                        IsPluginEnabled(options) && options.Enhance.MergeMultiVersion,
+                        options.Enhance.MergeSeriesPreference);
+                },
+                Configure = options =>
+                {
+                    options.Enhance ??= new EnhanceOptions();
+                    MergeMultiVersion.Configure(
+                        IsPluginEnabled(options) && options.Enhance.MergeMultiVersion,
+                        options.Enhance.MergeSeriesPreference);
+                },
+                IsEnabled = options =>
+                {
+                    options.Enhance ??= new EnhanceOptions();
+                    return IsPluginEnabled(options) && options.Enhance.MergeMultiVersion;
+                },
+                IsReady = () => MergeMultiVersion.IsReady,
+                IsWaiting = () => false
+            });
+
+            registrations.Add(new PatchRegistration
+            {
                 Name = "LibrayProviderSettings",
                 Initialize = options => LibrayProviderSettings.Initialize(
                     logger,

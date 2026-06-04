@@ -230,6 +230,46 @@ namespace MediaInfoKeeper.Services
             return NormalizeLibraryPaths(libraries.SelectMany(folder => folder.Locations ?? Array.Empty<string>()));
         }
 
+        public List<CollectionFolder> GetMovieLibraries()
+        {
+            var libraries = this.libraryManager
+                .GetItemList(new InternalItemsQuery { IncludeItemTypes = new[] { nameof(CollectionFolder) } })
+                .OfType<CollectionFolder>()
+                .Where(l => l.CollectionType == CollectionType.Movies.ToString() || l.CollectionType is null)
+                .ToList();
+
+            return libraries;
+        }
+
+        public List<CollectionFolder> GetSeriesLibraries()
+        {
+            var libraries = this.libraryManager
+                .GetItemList(new InternalItemsQuery { IncludeItemTypes = new[] { nameof(CollectionFolder) } })
+                .OfType<CollectionFolder>()
+                .Where(l => l.CollectionType == CollectionType.TvShows.ToString() || l.CollectionType is null)
+                .ToList();
+
+            return libraries;
+        }
+
+        public void EnsureLibraryEnabledAutomaticSeriesGrouping()
+        {
+            var libraries = this.libraryManager.GetVirtualFolders()
+                .Where(f => f.CollectionType == CollectionType.TvShows.ToString() || f.CollectionType is null)
+                .ToList();
+
+            foreach (var library in libraries)
+            {
+                var options = library.LibraryOptions;
+
+                if (!options.EnableAutomaticSeriesGrouping && long.TryParse(library.ItemId, out var itemId))
+                {
+                    options.EnableAutomaticSeriesGrouping = true;
+                    CollectionFolder.SaveLibraryOptions(itemId, options);
+                }
+            }
+        }
+
         /// <summary>获取所有媒体库的物理根路径。</summary>
         public List<string> GetAllLibraryPaths(bool existingOnly = true)
         {

@@ -35,6 +35,20 @@ namespace MediaInfoKeeper.Options.Store
                 ChineseSearch.UpdateSearchScope(next.SearchScope);
             }
 
+            if (current.MergeMultiVersion != next.MergeMultiVersion ||
+                current.MergeSeriesPreference != next.MergeSeriesPreference)
+            {
+                var pluginEnabled = Plugin.Instance?.Options?.MainPage?.PlugginEnabled ?? true;
+                MergeMultiVersion.Configure(
+                    pluginEnabled && next.MergeMultiVersion,
+                    next.MergeSeriesPreference);
+            }
+
+            if (next.MergeMultiVersion)
+            {
+                Plugin.LibraryService?.EnsureLibraryEnabledAutomaticSeriesGrouping();
+            }
+
             var isSimpleTokenizer =
                 string.Equals(ChineseSearch.CurrentTokenizerName, "simple", StringComparison.Ordinal);
             next.EnhanceChineseSearchRestore = !next.EnhanceChineseSearch && isSimpleTokenizer;
