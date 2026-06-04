@@ -21,7 +21,7 @@ namespace MediaInfoKeeper.ScheduledTask
 
         public string Key => "MediaInfoKeeperRestartEmbyTask";
 
-        public string Name => "9.重启Emby";
+        public string Name => "09.重启Emby";
 
         public string Description => "重启 Emby，临时释放内存。";
 

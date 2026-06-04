@@ -33,7 +33,7 @@ namespace MediaInfoKeeper.ScheduledTask
 
         public string Key => "MediaInfoKeeperEmbyDllMethodsScanTask";
 
-        public string Name => "0.导出Emby DLL 方法";
+        public string Name => "00.导出Emby DLL 方法";
 
         public string Description => "扫描 Emby /system 下 DLL 并导出方法清单到 TXT。";
 

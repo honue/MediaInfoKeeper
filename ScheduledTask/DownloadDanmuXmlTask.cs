@@ -24,7 +24,7 @@ namespace MediaInfoKeeper.ScheduledTask
 
         public string Key => "MediaInfoKeeperDownloadDanmuXmlTask";
 
-        public string Name => "7.下载弹幕";
+        public string Name => "07.下载弹幕";
 
         public string Description => "按本任务配置的媒体库范围与最近入库时间窗口，为电影和剧集下载弹幕。";
 
