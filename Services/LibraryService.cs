@@ -20,12 +20,18 @@ using Microsoft.Extensions.Caching.Memory;
 namespace MediaInfoKeeper.Services {
     public class LibraryService {
         private static readonly TimeSpan FavoriteUsersCacheTtl = TimeSpan.FromSeconds(120);
+        private static readonly TimeSpan EpisodeCountCacheTtl = TimeSpan.FromSeconds(30);
 
         private static readonly MemoryCacheEntryOptions FavoriteUsersCacheEntryOptions = new() {
             SlidingExpiration = FavoriteUsersCacheTtl
         };
 
+        private static readonly MemoryCacheEntryOptions EpisodeCountCacheEntryOptions = new() {
+            AbsoluteExpirationRelativeToNow = EpisodeCountCacheTtl
+        };
+
         private readonly MemoryCache favoriteUsersBySeriesIdCache = new(new MemoryCacheOptions());
+        private readonly MemoryCache episodeCountByItemIdCache = new(new MemoryCacheOptions());
         private readonly IFileSystem fileSystem;
         private readonly ILibraryManager libraryManager;
         private readonly ILogger logger;
@@ -425,6 +431,34 @@ namespace MediaInfoKeeper.Services {
             }
 
             return episodes;
+        }
+
+        /// <summary>
+        ///     获取电视剧或季度的总集数。使用 Emby 的零条目计数查询，避免为 DTO 展示逐季加载完整 Episode 实体。
+        /// </summary>
+        public int? GetEpisodeCount(BaseItem item, CancellationToken cancellationToken = default) {
+            if (item is not Series && item is not Season) return null;
+
+            if (episodeCountByItemIdCache.TryGetValue(item.InternalId, out int cachedCount))
+                return cachedCount;
+
+            var query = new InternalItemsQuery {
+                Recursive = true,
+                IncludeItemTypes = new[] { nameof(Episode) },
+                HasPath = true,
+                MediaTypes = new[] { MediaType.Video },
+                Limit = 0,
+                EnableTotalRecordCount = true
+            };
+
+            var count = item switch {
+                Series series => series.GetItems(query, cancellationToken).TotalRecordCount,
+                Season season => season.GetEpisodes(query, cancellationToken).TotalRecordCount,
+                _ => 0
+            };
+
+            episodeCountByItemIdCache.Set(item.InternalId, count, EpisodeCountCacheEntryOptions);
+            return count;
         }
 
         // 如果是 Series 就返回全剧集；如果是 Episode 或 Season 就只返回该季的所有剧集

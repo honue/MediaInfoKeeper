@@ -111,15 +111,12 @@ namespace MediaInfoKeeper.Patch {
         [HarmonyPostfix]
         private static void GetBaseItemDtoInternalPostfix(
             BaseItem item,
+            CancellationToken cancellationToken,
             ref BaseItemDto __result) {
             if (!isEnabled || __result?.UserData == null) return;
 
             try {
-                var episodeCount = item switch {
-                    Series series => Plugin.LibraryService?.FetchSeriesEpisodes(series)?.Count,
-                    Season season => Plugin.LibraryService?.GetSeriesEpisodesFromItem(season)?.Count,
-                    _ => null
-                };
+                var episodeCount = Plugin.LibraryService?.GetEpisodeCount(item, cancellationToken);
 
                 if (episodeCount.HasValue) {
                     __result.UserData.UnplayedItemCount = episodeCount.Value;
