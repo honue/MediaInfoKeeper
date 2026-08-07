@@ -50,7 +50,7 @@ namespace MediaInfoKeeper.Options {
             Caption = "重建数据库索引",
             CommandId = "enhance.optimizeDatabase",
             Icon = IconNames.settings_backup_restore,
-            ConfirmationPrompt = "将会重建分词索引、排序名，并清理裂图记录"
+            ConfirmationPrompt = "将会重建分词索引、排序名，清理裂图记录，并按相同 TMDB/IMDb 人员 ID 合并重复演员"
         };
 
         [DisplayName("启用增强搜索")]
