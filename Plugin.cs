@@ -536,7 +536,8 @@ namespace MediaInfoKeeper {
                                 try {
                                     // 恢复失败时先触发媒体信息提取，再写入 JSON。
                                     var extracted = await MediaInfoRunner.ExtractMediaInfoAsync(itemId, "入库媒体信息",
-                                            CancellationToken.None)
+                                            cancellationToken: CancellationToken.None,
+                                            priority: RefreshPriority.Highest)
                                         .ConfigureAwait(false);
                                     if (!extracted) Logger.Info($"入库媒体信息: 提取失败 item={itemDisplayName}");
                                 }
@@ -556,8 +557,19 @@ namespace MediaInfoKeeper {
                             if (item is Audio) EmbeddedInfoStore.ApplyToItem(item);
                         }
                     }
+                    // 所有需要媒体信息的任务启动完成后，后台等待媒体信息队列清空，再刷新元数据。
+                    await MediaInfoRunner.WaitForItemFinishAsync(itemId, CancellationToken.None)
+                            .ConfigureAwait(false);
 
-                    // 收藏
+                    //释放入库信号量
+                    itemAddedSemaphore.Release();
+                    semaphoreHeld =  false;
+
+                    if (IsItemAddedRefreshProviderEnabled(item)) {
+                        await MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest, allowFfProcess: true);
+                    }
+
+                    // 收藏通知和扫描收藏片头
                     if (item is Episode newEpisode && newEpisode.ExtraType == null) {
                         var series = LibraryService.GetSeries(newEpisode.SeriesId);
                         if (series == null) {
@@ -588,15 +600,6 @@ namespace MediaInfoKeeper {
                     if (IsItemAddedIntroScanProviderEnabled(item) && item is Episode episode)
                         _ = IntroScanRunner.ScanEpisodeAsync(episode, "入库片头扫描", priority: RefreshPriority.High);
 
-                    // 所有需要媒体信息的任务启动完成后，后台等待媒体信息队列清空，再刷新元数据。
-                    _ = Task.Run(async () => {
-                        await MediaInfoRunner.WaitForItemFinishAsync(itemId, CancellationToken.None)
-                            .ConfigureAwait(false);
-                        if (IsItemAddedRefreshProviderEnabled(item)) {
-                            _ = MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest,
-                                allowFfProcess: true);
-                        }
-                    });
                 }
                 catch (Exception ex) {
                     // 记录异常，避免影响库事件流程。

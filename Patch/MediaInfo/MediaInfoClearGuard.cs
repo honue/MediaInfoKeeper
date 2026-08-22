@@ -124,7 +124,7 @@ namespace MediaInfoKeeper.Patch {
             switch (result) {
                 case StreamSavePreparation.MergedWithExistingPrimary:
                     streams = preparedStreams;
-                    logger?.Info($"已保留媒体信息并合并有效外挂流: {item.FileName ?? item.Path}");
+                    logger?.Debug($"已保留媒体信息并合并有效外挂流: {item.FileName ?? item.Path}");
                     return true;
                 case StreamSavePreparation.NoPrimaryToPreserve:
                     streams = preparedStreams;
