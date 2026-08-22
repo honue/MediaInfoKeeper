@@ -406,7 +406,6 @@ namespace MediaInfoKeeper {
         private void NormalizeScopedLibraryOptions(PluginConfiguration options) {
             if (options?.MainPage == null) return;
 
-            options.MainPage.CatchupLibraries = NormalizeScopedLibraries(options.MainPage.CatchupLibraries);
             var scheduledTasksEditor = options.MainPage.ScheduledTasksEditor;
             if (scheduledTasksEditor != null) {
                 scheduledTasksEditor.RefreshRecentMetadata.RefreshRecentMetadataLibraries =
@@ -519,16 +518,6 @@ namespace MediaInfoKeeper {
                     }
 
                     Logger.Info($"新入库事件 {item.FileName ?? item.Path}");
-
-                    if (!LibraryService.IsItemInCatchupLibraryScope(item)) {
-                        // 条目不在选定媒体库范围内。
-                        Logger.Info("跳过处理: 不在选定媒体库范围，不提取媒体信息");
-                        if (IsItemAddedRefreshProviderEnabled(item)) {
-                            _ = MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest,
-                                allowFfProcess: false);
-                        }
-                        return;
-                    }
 
                     // 判断当前条目是否已有 MediaInfo。
                     var hasMediaInfo = MediaInfoService.HasMediaInfo(item);

@@ -58,12 +58,6 @@ namespace MediaInfoKeeper.Options {
 
         [Browsable(false)] public IEnumerable<EditorSelectOption> LibraryList { get; set; }
 
-        [DisplayName("追更媒体库")]
-        [Description("选定触发入库的媒体库范围；留空表示全部。")]
-        [EditMultilSelect]
-        [SelectItemsSource(nameof(LibraryList))]
-        public string CatchupLibraries { get; set; } = string.Empty;
-
         [Browsable(false)] public ScheduledTaskEditorOptions ScheduledTasksEditor { get; set; } = new();
 
         public void EnsureScheduledTaskEditors() {
@@ -131,8 +125,7 @@ namespace MediaInfoKeeper.Options {
             AddGroup("插件", string.Empty,
                 nameof(PlugginEnabled),
                 nameof(RefreshQueueStatus),
-                nameof(FileChangeRefreshDelaySeconds),
-                nameof(CatchupLibraries));
+                nameof(FileChangeRefreshDelaySeconds));
 
             AddGroup("计划任务配置", string.Empty,
                 nameof(ScheduledTaskEntries),

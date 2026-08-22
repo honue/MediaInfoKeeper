@@ -140,8 +140,6 @@ namespace MediaInfoKeeper.Web {
 
         public bool HasPrimaryImage { get; set; }
 
-        public bool IsInScope { get; set; }
-
         public bool IsRefreshedRecently { get; set; }
 
         public int MediaStreamCount { get; set; }

@@ -112,29 +112,6 @@ namespace MediaInfoKeeper.Services {
             return adminOrderedViews;
         }
 
-        /// <summary>根据追更媒体库配置判断条目是否属于命中范围。</summary>
-        public bool IsItemInCatchupLibraryScope(BaseItem item) {
-            var raw = Plugin.Instance.Options.MainPage.CatchupLibraries;
-            var scopedLibraries = ParseScopedLibraryTokens(raw);
-            if (scopedLibraries.Count == 0) return true;
-
-            foreach (var collectionFolder in libraryManager.GetCollectionFolders(item)) {
-                if (collectionFolder == null) continue;
-
-                var name = collectionFolder.Name?.Trim();
-                if (!string.IsNullOrEmpty(name) &&
-                    scopedLibraries.Contains(name))
-                    return true;
-
-                if (scopedLibraries.Contains(collectionFolder.InternalId.ToString())) return true;
-
-                var id = collectionFolder.Id.ToString();
-                if (scopedLibraries.Contains(id)) return true;
-            }
-
-            return false;
-        }
-
         /// <summary>根据配置生成媒体库路径列表。</summary>
         public List<string> GetScopedLibraryPaths(string scopedLibraries, out bool hasScope) {
             var tokens = ParseScopedLibraryTokens(scopedLibraries);
