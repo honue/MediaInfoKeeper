@@ -59,7 +59,7 @@ namespace MediaInfoKeeper.Options {
         [Browsable(false)] public IEnumerable<EditorSelectOption> LibraryList { get; set; }
 
         [DisplayName("追更媒体库")]
-        [Description("用于入库触发与删除 JSON 逻辑；留空表示全部。")]
+        [Description("选定触发入库的媒体库范围；留空表示全部。")]
         [EditMultilSelect]
         [SelectItemsSource(nameof(LibraryList))]
         public string CatchupLibraries { get; set; } = string.Empty;

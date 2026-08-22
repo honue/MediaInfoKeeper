@@ -685,8 +685,6 @@ namespace MediaInfoKeeper {
 
             if (!(e.Item is Video) && !(e.Item is Audio)) return;
 
-            if (!LibraryService.IsItemInCatchupLibraryScope(e.Item)) return;
-
             Logger.Info("同步删除 媒体信息 Json");
             MediaInfoDocument.DeleteMediaInfoJson(e.Item, new DirectoryService(Logger, fileSystem),
                 "Item Removed Event");
