@@ -12,10 +12,6 @@ namespace MediaInfoKeeper.Options {
 
         public override string EditorDescription => string.Empty;
 
-        [DisplayName("入库时提取媒体信息")]
-        [Description("入库时若 JSON 不存在或恢复失败，提取媒体信息并写入 JSON。")]
-        public bool ExtractMediaInfoOnItemAdded { get; set; } = true;
-
         [DisplayName("条目移除时删除 JSON")]
         [Description("启用后，条目移除时删除已持久化的 JSON。")]
         public bool DeleteMediaInfoJsonOnRemove { get; set; } = false;

@@ -530,7 +530,7 @@ namespace MediaInfoKeeper {
 
                         // 如果不存在Json文件，则使用ffprobe 提取一次
                         if (shouldRefreshAfterRestore) {
-                            if (!Options.MediaInfo.ExtractMediaInfoOnItemAdded)
+                            if (!IsItemAddedMediaInfoProviderEnabled(item))
                                 Logger.Info($"已关闭入库提取媒体信息，跳过提取 item={item.FileName ?? item.Path}");
                             else
                                 try {
@@ -566,7 +566,7 @@ namespace MediaInfoKeeper {
                         else {
                             var users = LibraryService.GetFavoriteUsersBySeriesId(series.InternalId);
                             if (users.Count != 0) {
-                                // 有人收藏，开始执行扫描收藏媒体信息和片头，避免重复，判断未开启所有入库扫描
+                                // 有人收藏，开始执行扫描收藏媒体信息和片头，避免重复，判断未开启媒体库入库扫描
                                 var canScanIntro = Options.IntroSkip?.ScanIntroOnFavorite == true &&
                                                    Options.IntroSkip?.ScanIntroOnItemAdded == false;
                                 if (canScanIntro)
@@ -609,11 +609,7 @@ namespace MediaInfoKeeper {
             });
         }
 
-        /// <summary>
-        ///     判断条目所属媒体库是否启用了 MediaInfoKeeper 入库刮削 Provider。
-        /// </summary>
-        /// <param name="item">待处理的入库条目。</param>
-        /// <returns>启用时返回 true；条目无效或 Provider 被禁用时返回 false。</returns>
+        /// <summary>判断条目所属媒体库是否启用了 MediaInfoKeeper 入库刮削 Provider。 </summary>
         private bool IsItemAddedRefreshProviderEnabled(BaseItem item) {
             if (item == null || item.InternalId <= 0) {
                 return false;
@@ -623,6 +619,27 @@ namespace MediaInfoKeeper {
             var enabled = item.IsLocalMetadataReaderEnabled(libraryOptions, ItemAddedRefreshProvider.ProviderName);
             if (!enabled) {
                 Logger.Info("此媒体库入库刮削已禁用: item={0}", item.FileName ?? item.Path ?? item.Name);
+            }
+
+            return enabled;
+        }
+
+        /// <summary>判断条目所属媒体库是否启用入库 MediaInfo 提取 Provider。</summary>
+        private bool IsItemAddedMediaInfoProviderEnabled(BaseItem item) {
+            return IsItemAddedProviderEnabled(item, ItemAddedMediaInfoProvider.ProviderName);
+        }
+
+        private bool IsItemAddedProviderEnabled(BaseItem item, string providerName) {
+            if (item == null || item.InternalId <= 0 || string.IsNullOrWhiteSpace(providerName)) {
+                return false;
+            }
+
+            var libraryOptions = libraryManager.GetLibraryOptions(item);
+            var enabled = item.IsLocalMetadataReaderEnabled(libraryOptions, providerName);
+            if (!enabled) {
+                Logger.Debug("媒体库入库 Provider 已禁用: provider={0}, item={1}",
+                    providerName,
+                    item.FileName ?? item.Path ?? item.Name);
             }
 
             return enabled;
