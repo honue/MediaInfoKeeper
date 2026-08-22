@@ -12,10 +12,6 @@ namespace MediaInfoKeeper.Options {
 
         public override string EditorDescription => string.Empty;
 
-        [DisplayName("条目移除时删除 JSON")]
-        [Description("启用后，条目移除时删除已持久化的 JSON。")]
-        public bool DeleteMediaInfoJsonOnRemove { get; set; } = false;
-
         [DisplayName("启用 MediaInfo 预加载")]
         [Description("播放剧集时，预加载下一集媒体信息；关闭后不再自动预加载。")]
         public bool EnableMediaInfoPrefetch { get; set; } = true;
@@ -23,6 +19,10 @@ namespace MediaInfoKeeper.Options {
         [DisplayName("浏览剧集提取媒体信息")]
         [Description("浏览视频或音频详情接口时，若条目没有媒体信息，则后台提取并写入 JSON。")]
         public bool ExtractMediaInfoOnItemDetail { get; set; } = false;
+
+        [DisplayName("条目移除时删除 JSON")]
+        [Description("启用后，条目移除时删除已持久化的 JSON。")]
+        public bool DeleteMediaInfoJsonOnRemove { get; set; } = false;
 
         [DisplayName("MediaInfo JSON 存储路径模板")]
         [Description("默认保存到 Emby 的 /config/data/MediaInfoKeeper。留空时保存到媒体文件同目录。支持路径模板，详见 https://github.com/honue/MediaInfoKeeper/wiki")]
