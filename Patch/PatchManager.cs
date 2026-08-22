@@ -295,16 +295,16 @@ namespace MediaInfoKeeper.Patch {
             registrations.Add(new PatchRegistration {
                 Name = "UnlockIntroSkip",
                 Initialize = options => {
-                    IntroUnlock.Initialize(logger, options.IntroSkip.UnlockIntroSkip);
+                    IntroUnlock.Initialize(logger, true);
                     IntroUnlock.Configure(options);
                 },
                 Configure = options => {
-                    IntroUnlock.Configure(IsPluginEnabled(options) && options.IntroSkip.UnlockIntroSkip);
+                    IntroUnlock.Configure(IsPluginEnabled(options));
                     IntroUnlock.Configure(options);
-                    if (!IsPluginEnabled(options)) IntroUnlock.Configure(false);
                 },
-                IsEnabled = options => IsPluginEnabled(options) && options.IntroSkip.UnlockIntroSkip,
-                IsReady = () => IntroUnlock.IsReady
+                IsEnabled = options => IsPluginEnabled(options),
+                IsReady = () => IntroUnlock.IsReady,
+                Notes = () => IsPluginEnabled(Plugin.Instance?.Options) ? "always enabled" : null
             });
 
             registrations.Add(new PatchRegistration {

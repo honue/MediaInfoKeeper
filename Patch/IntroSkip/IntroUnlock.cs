@@ -113,7 +113,6 @@ namespace MediaInfoKeeper.Patch {
         public static void Configure(PluginConfiguration options) {
             if (options?.IntroSkip == null) return;
 
-            Configure(options.IntroSkip.UnlockIntroSkip);
             UpdateLibraryPathsInScope();
             UpdateLibraryIntroDetectionFingerprintLength(options.IntroSkip.IntroDetectionFingerprintMinutes);
         }

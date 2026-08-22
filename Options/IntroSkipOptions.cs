@@ -19,10 +19,6 @@ namespace MediaInfoKeeper.Options {
 
         public override string EditorDescription => string.Empty;
 
-        [DisplayName("启用 Strm 片头检测解锁")]
-        [Description("开启后允许 .strm 参与 Emby 原生片头指纹探测。")]
-        public bool UnlockIntroSkip { get; set; } = true;
-
         [DisplayName("收藏入库时扫描片头")]
         [Description("触发对应收藏媒体片头检测，同时入库收藏剧集时，提取媒体信息，扫描片头。")]
         public bool ScanIntroOnFavorite { get; set; } = true;
@@ -149,7 +145,6 @@ namespace MediaInfoKeeper.Options {
             }
 
             AddGroup("扫描片头", "",
-                nameof(UnlockIntroSkip),
                 nameof(ScanIntroOnFavorite),
                 nameof(FilterPlainChapters),
                 nameof(IntroDetectionFingerprintMinutes),
