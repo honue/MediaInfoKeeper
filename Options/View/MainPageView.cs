@@ -10,6 +10,7 @@ using MediaInfoKeeper.ScheduledTask;
 
 namespace MediaInfoKeeper.Options.View {
     internal class MainPageView : PluginPageView {
+        private const string ItemAddedTaskDialogCommandId = "main.itemAdded.configure";
         private const string UpdatePluginDialogCommandId = "main.scheduled.updatePlugin";
         private const string UpdatePluginRunCommandId = "main.scheduled.run.updatePlugin";
         private const string RefreshRecentMetadataDialogCommandId = "main.scheduled.refreshRecentMetadata";
@@ -37,6 +38,9 @@ namespace MediaInfoKeeper.Options.View {
         public MainPageOptions Options => ContentData as MainPageOptions;
 
         public override Task<IPluginUIView> RunCommand(string itemId, string commandId, string data) {
+            if (string.Equals(commandId, ItemAddedTaskDialogCommandId, StringComparison.Ordinal))
+                return Task.FromResult<IPluginUIView>(new ItemAddedTaskDialogView(pluginInfo.Id, Options));
+
             if (string.Equals(commandId, UpdatePluginDialogCommandId, StringComparison.Ordinal))
                 return Task.FromResult<IPluginUIView>(new UpdatePluginTaskDialogView(pluginInfo.Id, Options));
 

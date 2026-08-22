@@ -36,7 +36,6 @@ using MediaInfoKeeper.Options;
 using MediaInfoKeeper.Options.Store;
 using MediaInfoKeeper.Options.View;
 using MediaInfoKeeper.Patch;
-using MediaInfoKeeper.Provider;
 using MediaInfoKeeper.ScheduledTask;
 using MediaInfoKeeper.Services;
 using MediaInfoKeeper.Services.IntroSkip;
@@ -385,6 +384,7 @@ namespace MediaInfoKeeper {
             if (options == null) return;
 
             options.MainPage ??= new MainPageOptions();
+            options.MainPage.EnsureItemAddedTaskEditor();
             options.MainPage.ScheduledTasksEditor ??= new MainPageOptions.ScheduledTaskEditorOptions();
             options.MediaInfo ??= new MediaInfoOptions();
             options.IntroSkip ??= new IntroSkipOptions();
@@ -405,6 +405,15 @@ namespace MediaInfoKeeper {
 
         private void NormalizeScopedLibraryOptions(PluginConfiguration options) {
             if (options?.MainPage == null) return;
+
+            options.MainPage.EnsureItemAddedTaskEditor();
+            var itemAddedTaskEditor = options.MainPage.ItemAddedTaskEditor;
+            itemAddedTaskEditor.ItemAddedMediaInfoLibraries =
+                NormalizeScopedLibraries(itemAddedTaskEditor.ItemAddedMediaInfoLibraries);
+            itemAddedTaskEditor.ItemAddedRefreshMetadataLibraries =
+                NormalizeScopedLibraries(itemAddedTaskEditor.ItemAddedRefreshMetadataLibraries);
+            itemAddedTaskEditor.ItemAddedIntroScanLibraries =
+                NormalizeScopedLibraries(itemAddedTaskEditor.ItemAddedIntroScanLibraries);
 
             var scheduledTasksEditor = options.MainPage.ScheduledTasksEditor;
             if (scheduledTasksEditor != null) {
@@ -507,9 +516,22 @@ namespace MediaInfoKeeper {
                         // 未启用持久化，直接跳过。
                         return;
 
+                    var pluginOptions = OptionsStore.GetOptions();
+                    var itemAddedOptions = pluginOptions?.MainPage?.ItemAddedTaskEditor;
+                    var libraryScopeKeys = LibraryService.GetItemLibraryScopeKeys(item);
+                    var extractMediaInfo = LibraryService.IsLibraryScopeMatch(
+                        libraryScopeKeys,
+                        itemAddedOptions?.ItemAddedMediaInfoLibraries);
+                    var refreshMetadata = LibraryService.IsLibraryScopeMatch(
+                        libraryScopeKeys,
+                        itemAddedOptions?.ItemAddedRefreshMetadataLibraries);
+                    var scanIntro = item is Episode && LibraryService.IsLibraryScopeMatch(
+                        libraryScopeKeys,
+                        itemAddedOptions?.ItemAddedIntroScanLibraries);
+
                     if (!(item is Video) && !(item is Audio)) {
                         // 仅处理音视频条目,补刷 Series Season 等等。
-                        if (item is Folder && IsItemAddedRefreshProviderEnabled(item)) {
+                        if (item is Folder && refreshMetadata) {
                             _ = MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest,
                                 allowFfProcess: true);
                         }
@@ -530,7 +552,7 @@ namespace MediaInfoKeeper {
 
                         // 如果不存在Json文件，则使用ffprobe 提取一次
                         if (shouldRefreshAfterRestore) {
-                            if (!IsItemAddedMediaInfoProviderEnabled(item))
+                            if (!extractMediaInfo)
                                 Logger.Info($"已关闭入库提取媒体信息，跳过提取 item={item.FileName ?? item.Path}");
                             else
                                 try {
@@ -565,7 +587,7 @@ namespace MediaInfoKeeper {
                     itemAddedSemaphore.Release();
                     semaphoreHeld =  false;
 
-                    if (IsItemAddedRefreshProviderEnabled(item)) {
+                    if (refreshMetadata) {
                         await MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest, allowFfProcess: true);
                     }
 
@@ -579,8 +601,7 @@ namespace MediaInfoKeeper {
                             var users = LibraryService.GetFavoriteUsersBySeriesId(series.InternalId);
                             if (users.Count != 0) {
                                 // 有人收藏，开始执行扫描收藏媒体信息和片头，避免重复，判断未开启媒体库入库扫描
-                                var canScanIntro = Options.IntroSkip?.ScanIntroOnFavorite == true &&
-                                                   !IsItemAddedIntroScanProviderEnabled(newEpisode);
+                                var canScanIntro = pluginOptions?.IntroSkip?.ScanIntroOnFavorite == true && !scanIntro;
                                 if (canScanIntro)
                                     _ = IntroScanRunner.ScanEpisodeAsync(newEpisode, "收藏入库",
                                         priority: RefreshPriority.High);
@@ -597,7 +618,7 @@ namespace MediaInfoKeeper {
                     }
 
                     // 入库加入扫描片头队列
-                    if (IsItemAddedIntroScanProviderEnabled(item) && item is Episode episode)
+                    if (scanIntro && item is Episode episode)
                         _ = IntroScanRunner.ScanEpisodeAsync(episode, "入库片头扫描", priority: RefreshPriority.High);
 
                 }
@@ -610,38 +631,6 @@ namespace MediaInfoKeeper {
                     if (semaphoreHeld) itemAddedSemaphore.Release();
                 }
             });
-        }
-
-        /// <summary>判断条目所属媒体库是否启用了 MediaInfoKeeper 入库刮削 Provider。 </summary>
-        private bool IsItemAddedRefreshProviderEnabled(BaseItem item) {
-            return IsItemAddedProviderEnabled(item, ItemAddedRefreshProvider.ProviderName);
-        }
-
-        /// <summary>判断条目所属媒体库是否启用入库 MediaInfo 提取 Provider。</summary>
-        private bool IsItemAddedMediaInfoProviderEnabled(BaseItem item) {
-            return IsItemAddedProviderEnabled(item, ItemAddedMediaInfoProvider.ProviderName);
-        }
-
-        /// <summary>判断条目所属媒体库是否启用入库片头扫描 Provider。</summary>
-        private bool IsItemAddedIntroScanProviderEnabled(BaseItem item) {
-            return item is Episode &&
-                   IsItemAddedProviderEnabled(item, ItemAddedIntroScanProvider.ProviderName);
-        }
-
-        private bool IsItemAddedProviderEnabled(BaseItem item, string providerName) {
-            if (item == null || item.InternalId <= 0 || string.IsNullOrWhiteSpace(providerName)) {
-                return false;
-            }
-
-            var libraryOptions = libraryManager.GetLibraryOptions(item);
-            var enabled = item.IsLocalMetadataReaderEnabled(libraryOptions, providerName);
-            if (!enabled) {
-                Logger.Debug("媒体库入库 Provider 已禁用: provider={0}, item={1}",
-                    providerName,
-                    item.FileName ?? item.Path ?? item.Name);
-            }
-
-            return enabled;
         }
 
         /// <summary> 收藏喜爱事件处 </summary>

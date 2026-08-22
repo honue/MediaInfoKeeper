@@ -37,6 +37,14 @@ namespace MediaInfoKeeper.Options.Store {
             if (!(rootNode is JsonObject root)) return rootNode;
 
             var mainPage = GetOrCreateObject(root, nameof(PluginConfiguration.MainPage));
+            var itemAddedTaskEditor = GetOrCreateObject(mainPage, nameof(MainPageOptions.ItemAddedTaskEditor));
+            CopyString(mainPage, itemAddedTaskEditor, "ItemAddedMediaInfoLibraries",
+                nameof(MainPageOptions.ItemAddedTaskEditorOptions.ItemAddedMediaInfoLibraries));
+            CopyString(mainPage, itemAddedTaskEditor, "ItemAddedRefreshMetadataLibraries",
+                nameof(MainPageOptions.ItemAddedTaskEditorOptions.ItemAddedRefreshMetadataLibraries));
+            CopyString(mainPage, itemAddedTaskEditor, "ItemAddedIntroScanLibraries",
+                nameof(MainPageOptions.ItemAddedTaskEditorOptions.ItemAddedIntroScanLibraries));
+
             var scheduledTasksEditor = GetOrCreateObject(mainPage, nameof(MainPageOptions.ScheduledTasksEditor));
 
             var refreshRecentMetadata = GetOrCreateObject(scheduledTasksEditor,
@@ -103,6 +111,9 @@ namespace MediaInfoKeeper.Options.Store {
 
             if (root[nameof(PluginConfiguration.MainPage)] is JsonObject mainPage)
                 Remove(mainPage,
+                    "ItemAddedMediaInfoLibraries",
+                    "ItemAddedRefreshMetadataLibraries",
+                    "ItemAddedIntroScanLibraries",
                     "RefreshRecentMetadataDays",
                     "RefreshRecentMetadataLibraries",
                     "RefreshMetadataMode",

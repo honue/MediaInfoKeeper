@@ -25,6 +25,8 @@ namespace MediaInfoKeeper.Options {
 
         public override string EditorDescription => string.Empty;
 
+        public GenericItemList ItemAddedTaskEntries { get; set; } = new();
+
         public GenericItemList ScheduledTaskEntries { get; set; } = new();
 
         [VisibleCondition(nameof(ShowRefreshQueueStatus), SimpleCondition.IsTrue)]
@@ -58,7 +60,13 @@ namespace MediaInfoKeeper.Options {
 
         [Browsable(false)] public IEnumerable<EditorSelectOption> LibraryList { get; set; }
 
+        [Browsable(false)] public ItemAddedTaskEditorOptions ItemAddedTaskEditor { get; set; } = new();
+
         [Browsable(false)] public ScheduledTaskEditorOptions ScheduledTasksEditor { get; set; } = new();
+
+        public void EnsureItemAddedTaskEditor() {
+            ItemAddedTaskEditor ??= new ItemAddedTaskEditorOptions();
+        }
 
         public void EnsureScheduledTaskEditors() {
             ScheduledTasksEditor ??= new ScheduledTaskEditorOptions();
@@ -70,7 +78,9 @@ namespace MediaInfoKeeper.Options {
         }
 
         public void PrepareScheduledTaskEditorForUi() {
+            EnsureItemAddedTaskEditor();
             EnsureScheduledTaskEditors();
+            ItemAddedTaskEditor.LibraryList = LibraryList;
             ScheduledTasksEditor.LibraryList = LibraryList;
             ScheduledTasksEditor.RefreshRecentMetadata.LibraryList = LibraryList;
             ScheduledTasksEditor.SubmitTheIntroDbMarkers.LibraryList = LibraryList;
@@ -78,6 +88,7 @@ namespace MediaInfoKeeper.Options {
             ScheduledTasksEditor.RestoreMediaInfo.LibraryList = LibraryList;
             ScheduledTasksEditor.UpdatePlugin.Initialize();
 
+            ItemAddedTaskEntries = BuildItemAddedTaskEntries();
             ScheduledTaskEntries = BuildScheduledTaskEntries();
         }
 
@@ -127,6 +138,9 @@ namespace MediaInfoKeeper.Options {
                 nameof(RefreshQueueStatus),
                 nameof(FileChangeRefreshDelaySeconds));
 
+            AddGroup("", string.Empty,
+                nameof(ItemAddedTaskEntries));
+
             AddGroup("计划任务配置", string.Empty,
                 nameof(ScheduledTaskEntries),
                 nameof(UpdatePluginVersionStatus),
@@ -167,6 +181,18 @@ namespace MediaInfoKeeper.Options {
             });
         }
 
+        private static GenericItemList BuildItemAddedTaskEntries() {
+            return new GenericItemList(new[] {
+                new GenericListItem {
+                    PrimaryText = "入库处理范围",
+                    Button1 = new ButtonItem("配置") {
+                        CommandId = "main.itemAdded.configure",
+                        Icon = IconNames.settings
+                    }
+                }
+            });
+        }
+
         private static GenericListItem CreateScheduledTaskEntry(string primaryText, string commandId, string runCommandId) {
             var item = new GenericListItem {
                 PrimaryText = primaryText,
@@ -183,6 +209,30 @@ namespace MediaInfoKeeper.Options {
                 };
 
             return item;
+        }
+
+        public class ItemAddedTaskEditorOptions : EditableOptionsBase {
+            public override string EditorTitle => string.Empty;
+
+            [Browsable(false)] public IEnumerable<EditorSelectOption> LibraryList { get; set; }
+
+            [DisplayName("入库提取媒体信息")]
+            [Description("选择入库时提取媒体信息并写入 JSON 的媒体库；留空表示全部。")]
+            [EditMultilSelect]
+            [SelectItemsSource(nameof(LibraryList))]
+            public string ItemAddedMediaInfoLibraries { get; set; } = string.Empty;
+
+            [DisplayName("入库刷新元数据")]
+            [Description("选择入库时刷新元数据（含片头数据库）和图片的媒体库；留空表示全部。")]
+            [EditMultilSelect]
+            [SelectItemsSource(nameof(LibraryList))]
+            public string ItemAddedRefreshMetadataLibraries { get; set; } = string.Empty;
+
+            [DisplayName("入库扫描片头")]
+            [Description("选择新剧集入库时扫描片头片尾的媒体库；留空表示全部。")]
+            [EditMultilSelect]
+            [SelectItemsSource(nameof(LibraryList))]
+            public string ItemAddedIntroScanLibraries { get; set; } = string.Empty;
         }
 
         public class RefreshRecentMetadataTaskEditorOptions : EditableOptionsBase {
