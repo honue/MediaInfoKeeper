@@ -114,6 +114,7 @@ namespace MediaInfoKeeper.Patch {
                 result.DefaultLibraryOptions.MetadataCountryCode = "CN";
                 result.DefaultLibraryOptions.PreferredImageLanguage = "zh-CN";
                 DisableSubtitleFetchersByDefault(result);
+                DisableItemAddedIntroScanByDefault(result);
             }
 
             foreach (var typeOptions in result.TypeOptions) {
@@ -140,6 +141,21 @@ namespace MediaInfoKeeper.Patch {
 
             result.DefaultLibraryOptions.DisabledSubtitleFetchers = subtitleFetcherNames;
             result.DefaultLibraryOptions.SubtitleFetcherOrder = subtitleFetcherNames;
+        }
+
+        private static void DisableItemAddedIntroScanByDefault(LibraryOptionsResult result) {
+            const string providerName = "MediaInfoKeeper 入库片头扫描";
+            var reader = result.MetadataReaders?.FirstOrDefault(i =>
+                string.Equals(i?.Name, providerName, StringComparison.OrdinalIgnoreCase));
+            if (reader != null) reader.DefaultEnabled = false;
+
+            if (result.DefaultLibraryOptions == null) return;
+
+            var disabledReaders = result.DefaultLibraryOptions.DisabledLocalMetadataReaders ?? Array.Empty<string>();
+            if (!disabledReaders.Contains(providerName, StringComparer.OrdinalIgnoreCase))
+                result.DefaultLibraryOptions.DisabledLocalMetadataReaders = disabledReaders
+                    .Concat(new[] { providerName })
+                    .ToArray();
         }
 
         private static string[] NormalizeFetcherOptions(LibraryOptionInfo[] fetchers) {

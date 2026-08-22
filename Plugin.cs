@@ -568,7 +568,7 @@ namespace MediaInfoKeeper {
                             if (users.Count != 0) {
                                 // 有人收藏，开始执行扫描收藏媒体信息和片头，避免重复，判断未开启媒体库入库扫描
                                 var canScanIntro = Options.IntroSkip?.ScanIntroOnFavorite == true &&
-                                                   Options.IntroSkip?.ScanIntroOnItemAdded == false;
+                                                   !IsItemAddedIntroScanProviderEnabled(newEpisode);
                                 if (canScanIntro)
                                     _ = IntroScanRunner.ScanEpisodeAsync(newEpisode, "收藏入库",
                                         priority: RefreshPriority.High);
@@ -585,7 +585,7 @@ namespace MediaInfoKeeper {
                     }
 
                     // 入库加入扫描片头队列
-                    if (Options.IntroSkip?.ScanIntroOnItemAdded == true && item is Episode episode)
+                    if (IsItemAddedIntroScanProviderEnabled(item) && item is Episode episode)
                         _ = IntroScanRunner.ScanEpisodeAsync(episode, "入库片头扫描", priority: RefreshPriority.High);
 
                     // 所有需要媒体信息的任务启动完成后，后台等待媒体信息队列清空，再刷新元数据。
@@ -611,22 +611,18 @@ namespace MediaInfoKeeper {
 
         /// <summary>判断条目所属媒体库是否启用了 MediaInfoKeeper 入库刮削 Provider。 </summary>
         private bool IsItemAddedRefreshProviderEnabled(BaseItem item) {
-            if (item == null || item.InternalId <= 0) {
-                return false;
-            }
-
-            var libraryOptions = libraryManager.GetLibraryOptions(item);
-            var enabled = item.IsLocalMetadataReaderEnabled(libraryOptions, ItemAddedRefreshProvider.ProviderName);
-            if (!enabled) {
-                Logger.Info("此媒体库入库刮削已禁用: item={0}", item.FileName ?? item.Path ?? item.Name);
-            }
-
-            return enabled;
+            return IsItemAddedProviderEnabled(item, ItemAddedRefreshProvider.ProviderName);
         }
 
         /// <summary>判断条目所属媒体库是否启用入库 MediaInfo 提取 Provider。</summary>
         private bool IsItemAddedMediaInfoProviderEnabled(BaseItem item) {
             return IsItemAddedProviderEnabled(item, ItemAddedMediaInfoProvider.ProviderName);
+        }
+
+        /// <summary>判断条目所属媒体库是否启用入库片头扫描 Provider。</summary>
+        private bool IsItemAddedIntroScanProviderEnabled(BaseItem item) {
+            return item is Episode &&
+                   IsItemAddedProviderEnabled(item, ItemAddedIntroScanProvider.ProviderName);
         }
 
         private bool IsItemAddedProviderEnabled(BaseItem item, string providerName) {

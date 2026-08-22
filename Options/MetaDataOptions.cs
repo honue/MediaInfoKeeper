@@ -90,7 +90,8 @@ namespace MediaInfoKeeper.Options {
                 CreateScraperEntry(DanmuProvider.ProviderName, "适用条目：电影、集；刮削弹幕。", "metadata.scraper.danmu"),
                 CreateScraperEntry(DoubanRoleProvider.ProviderName, "适用条目：电影、剧集、集；使用豆瓣人物角色名。"),
                 CreateScraperEntry(ItemAddedRefreshProvider.ProviderName, "适用：媒体库；入库时覆盖刷新元数据和图片。"),
-                CreateScraperEntry(ItemAddedMediaInfoProvider.ProviderName, "适用：媒体库；入库时提取 MediaInfo 并写入 JSON。")
+                CreateScraperEntry(ItemAddedMediaInfoProvider.ProviderName, "适用：媒体库；入库时提取 MediaInfo 并写入 JSON。"),
+                CreateScraperEntry(ItemAddedIntroScanProvider.ProviderName, "适用：媒体库；入库时扫描片头片尾。")
             });
 
             FallbackLanguageList.Clear();
