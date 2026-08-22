@@ -36,6 +36,7 @@ using MediaInfoKeeper.Options;
 using MediaInfoKeeper.Options.Store;
 using MediaInfoKeeper.Options.View;
 using MediaInfoKeeper.Patch;
+using MediaInfoKeeper.Provider;
 using MediaInfoKeeper.ScheduledTask;
 using MediaInfoKeeper.Services;
 using MediaInfoKeeper.Services.IntroSkip;
@@ -509,9 +510,10 @@ namespace MediaInfoKeeper {
 
                     if (!(item is Video) && !(item is Audio)) {
                         // 仅处理音视频条目,补刷 Series Season 等等。
-                        if (item is Folder)
+                        if (item is Folder && IsItemAddedRefreshProviderEnabled(item)) {
                             _ = MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest,
                                 allowFfProcess: true);
+                        }
 
                         return;
                     }
@@ -521,8 +523,10 @@ namespace MediaInfoKeeper {
                     if (!LibraryService.IsItemInCatchupLibraryScope(item)) {
                         // 条目不在选定媒体库范围内。
                         Logger.Info("跳过处理: 不在选定媒体库范围，不提取媒体信息");
-                        _ = MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest,
-                            allowFfProcess: false);
+                        if (IsItemAddedRefreshProviderEnabled(item)) {
+                            _ = MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest,
+                                allowFfProcess: false);
+                        }
                         return;
                     }
 
@@ -581,8 +585,7 @@ namespace MediaInfoKeeper {
                                         priority: RefreshPriority.High);
 
                                 // 有人收藏，通知收藏入库
-                                Logger.Info(
-                                    $"收藏入库事件: 剧集={series.Name} {newEpisode.Name}, 收藏用户={string.Join(", ", users)}");
+                                Logger.Info($"收藏入库事件: 剧集={series.Name} {newEpisode.Name}, 收藏用户={string.Join(", ", users)}");
                                 var sentCount = NotificationApi.LibraryNewSendNotification(series, newEpisode, users);
                                 if (sentCount > 0) Logger.Info($"已发送入库通知: 剧集={series.Name} {newEpisode.Name}, 通知用户数={sentCount}");
                             }
@@ -600,8 +603,10 @@ namespace MediaInfoKeeper {
                     _ = Task.Run(async () => {
                         await MediaInfoRunner.WaitForItemFinishAsync(itemId, CancellationToken.None)
                             .ConfigureAwait(false);
-                        _ = MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest,
-                            allowFfProcess: true);
+                        if (IsItemAddedRefreshProviderEnabled(item)) {
+                            _ = MetaDataRunner.RefreshMetaDataAsync(itemId, priority: RefreshPriority.Highest,
+                                allowFfProcess: true);
+                        }
                     });
                 }
                 catch (Exception ex) {
@@ -613,6 +618,25 @@ namespace MediaInfoKeeper {
                     if (semaphoreHeld) itemAddedSemaphore.Release();
                 }
             });
+        }
+
+        /// <summary>
+        ///     判断条目所属媒体库是否启用了 MediaInfoKeeper 入库刮削 Provider。
+        /// </summary>
+        /// <param name="item">待处理的入库条目。</param>
+        /// <returns>启用时返回 true；条目无效或 Provider 被禁用时返回 false。</returns>
+        private bool IsItemAddedRefreshProviderEnabled(BaseItem item) {
+            if (item == null || item.InternalId <= 0) {
+                return false;
+            }
+
+            var libraryOptions = libraryManager.GetLibraryOptions(item);
+            var enabled = item.IsLocalMetadataReaderEnabled(libraryOptions, ItemAddedRefreshProvider.ProviderName);
+            if (!enabled) {
+                Logger.Info("此媒体库入库刮削已禁用: item={0}", item.FileName ?? item.Path ?? item.Name);
+            }
+
+            return enabled;
         }
 
         /// <summary> 收藏喜爱事件处 </summary>
