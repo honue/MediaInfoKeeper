@@ -125,10 +125,10 @@ namespace MediaInfoKeeper.Services {
             return keys;
         }
 
-        /// <summary>判断已解析的条目媒体库标识是否命中指定范围；范围留空时匹配全部。</summary>
+        /// <summary>判断已解析的条目媒体库标识是否命中指定范围；范围留空时不匹配。</summary>
         public bool IsLibraryScopeMatch(IReadOnlyCollection<string> libraryScopeKeys, string scopedLibraries) {
             var tokens = ParseScopedLibraryTokens(scopedLibraries);
-            return tokens.Count == 0 || libraryScopeKeys?.Any(tokens.Contains) == true;
+            return tokens.Count > 0 && libraryScopeKeys?.Any(tokens.Contains) == true;
         }
 
         /// <summary>根据配置生成媒体库路径列表。</summary>

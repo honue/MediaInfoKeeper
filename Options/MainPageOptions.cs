@@ -217,19 +217,19 @@ namespace MediaInfoKeeper.Options {
             [Browsable(false)] public IEnumerable<EditorSelectOption> LibraryList { get; set; }
 
             [DisplayName("入库提取媒体信息")]
-            [Description("选择入库时提取媒体信息并写入 JSON 的媒体库；留空表示全部。")]
+            [Description("选择入库时提取媒体信息并写入 JSON 的媒体库；留空不选择任何媒体库。")]
             [EditMultilSelect]
             [SelectItemsSource(nameof(LibraryList))]
             public string ItemAddedMediaInfoLibraries { get; set; } = string.Empty;
 
             [DisplayName("入库刷新元数据")]
-            [Description("选择入库时刷新元数据（含片头数据库）和图片的媒体库；留空表示全部。")]
+            [Description("选择入库时覆盖刷新元数据（含片头数据库）和图片的媒体库；留空不选择任何媒体库。")]
             [EditMultilSelect]
             [SelectItemsSource(nameof(LibraryList))]
             public string ItemAddedRefreshMetadataLibraries { get; set; } = string.Empty;
 
             [DisplayName("入库扫描片头")]
-            [Description("选择新剧集入库时扫描片头片尾的媒体库；留空表示全部。")]
+            [Description("选择新剧集入库时扫描片头片尾的媒体库；留空不选择任何媒体库。")]
             [EditMultilSelect]
             [SelectItemsSource(nameof(LibraryList))]
             public string ItemAddedIntroScanLibraries { get; set; } = string.Empty;
