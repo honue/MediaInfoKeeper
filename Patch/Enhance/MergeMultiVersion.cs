@@ -323,6 +323,8 @@ namespace MediaInfoKeeper.Patch {
                 });
 
                 foreach (var alt in itemsToRefresh) {
+                    if (item is Series && alt is not Series || item is Season && alt is not Season) continue;
+
                     if (!string.IsNullOrEmpty(episodeGroupId)) {
                         var altSeries = alt as Series ?? (alt as Season)?.Series;
 
@@ -338,7 +340,19 @@ namespace MediaInfoKeeper.Patch {
                         }
                     }
 
-                    BaseItem.ProviderManager.QueueRefresh(alt.InternalId, __result, RefreshPriority.Normal, true);
+                    var linkedRefreshOptions = new MetadataRefreshOptions(__result) {
+                        // Refresh only the corresponding Series/Season. Reusing the recursive request here makes
+                        // every linked library validate and refresh all children while another library may still be
+                        // deleting/recreating STRM entries, which can remove episode image cache directories.
+                        Recursive = false
+                    };
+
+                    // Do not replace an ingest/scan refresh that Emby has already queued for the linked item.
+                    BaseItem.ProviderManager.QueueRefresh(
+                        alt.InternalId,
+                        linkedRefreshOptions,
+                        RefreshPriority.Normal,
+                        false);
                 }
             }
         }
