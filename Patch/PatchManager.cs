@@ -125,8 +125,8 @@ namespace MediaInfoKeeper.Patch {
                 Name = "MetadataRefreshAllowFfProcess",
                 Initialize = _ => MetadataRefreshAllowFfProcess.Initialize(logger, true),
                 Configure = options => MetadataRefreshAllowFfProcess.Configure(
-                    IsPluginEnabled(options) && options.Enhance.TakeOverRefreshQueue),
-                IsEnabled = options => IsPluginEnabled(options) && options.Enhance.TakeOverRefreshQueue,
+                    IsPluginEnabled(options)),
+                IsEnabled = options => IsPluginEnabled(options),
                 IsReady = () => MetadataRefreshAllowFfProcess.IsReady,
                 Notes = () => "read AllowFfProcess from metadata refresh request"
             });

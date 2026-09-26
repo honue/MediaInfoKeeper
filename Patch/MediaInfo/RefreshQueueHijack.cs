@@ -132,7 +132,8 @@ namespace MediaInfoKeeper.Patch {
             [HarmonyArgument(1)] MetadataRefreshOptions options,
             [HarmonyArgument(2)] RefreshPriority priority,
             [HarmonyArgument(3)] bool dequeueIfAlreadyQueued) {
-            if (!ShouldTakeOverRefreshQueue(id, options)) return true;
+            var allowFfProcess = MetadataRefreshAllowFfProcess.HasCurrentAllowance;
+            if (!ShouldTakeOverRefreshQueue(id, options, allowFfProcess)) return true;
 
             var runner = SelectRunner(id, options);
             if (runner == RefreshQueueHijackKind.MediaInfo)
@@ -147,15 +148,18 @@ namespace MediaInfoKeeper.Patch {
                     options,
                     priority: priority,
                     replaceQueued: dequeueIfAlreadyQueued,
-                    allowFfProcess: MetadataRefreshAllowFfProcess.HasCurrentAllowance);
+                    allowFfProcess: allowFfProcess);
 
             return false;
         }
 
-        private static bool ShouldTakeOverRefreshQueue(long itemId, MetadataRefreshOptions options) {
+        private static bool ShouldTakeOverRefreshQueue(
+            long itemId,
+            MetadataRefreshOptions options,
+            bool allowFfProcess) {
             return itemId > 0 &&
                    options != null &&
-                   configuredEnabled &&
+                   (configuredEnabled || allowFfProcess) &&
                    Plugin.LibraryManager != null &&
                    Plugin.ProviderManager != null;
         }
