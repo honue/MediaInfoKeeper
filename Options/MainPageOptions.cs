@@ -30,9 +30,15 @@ namespace MediaInfoKeeper.Options {
         public GenericItemList ScheduledTaskEntries { get; set; } = new();
 
         [VisibleCondition(nameof(ShowRefreshQueueStatus), SimpleCondition.IsTrue)]
-        [DisplayName("刷新队列")]
-        public StatusItem RefreshQueueStatus { get; set; } = new("刷新队列",
-            "元数据刷新：0 / 0  · 0 等待\n媒体信息提取：0 / 0  · 0 等待", ItemStatus.Succeeded);
+        [DisplayName("插件处理状态")]
+        public StatusItem RefreshQueueStatus { get; set; } = new("插件处理状态",
+            "当前没有媒体信息、元数据或片头片尾任务", ItemStatus.Succeeded);
+
+        [VisibleCondition(nameof(ShowRefreshQueueStatus), SimpleCondition.IsTrue)]
+        public ButtonItem RefreshQueueStatusButton { get; set; } = new("刷新状态") {
+            CommandId = "main.refreshQueueStatus",
+            Icon = IconNames.refresh
+        };
 
         [Browsable(false)] public bool ShowRefreshQueueStatus { get; set; } = true;
 
@@ -49,7 +55,7 @@ namespace MediaInfoKeeper.Options {
         public string UpdatePluginReleaseHistoryBody { get; set; } = "加载中";
 
         [DisplayName("启用插件")]
-        [Description("关闭后将不执行任何行为。")]
+        [Description("关闭插件自动处理；手动执行的计划任务仍可使用。")]
         public bool PlugginEnabled { get; set; } = true;
 
         [DisplayName("Emby入库扫描延迟（秒）")]
@@ -74,6 +80,9 @@ namespace MediaInfoKeeper.Options {
             ScheduledTasksEditor.SubmitTheIntroDbMarkers ??= new SubmitTheIntroDbMarkersTaskEditorOptions();
             ScheduledTasksEditor.ExportExistingMediaInfo ??= new ExportExistingMediaInfoTaskEditorOptions();
             ScheduledTasksEditor.RestoreMediaInfo ??= new RestoreMediaInfoTaskEditorOptions();
+            ScheduledTasksEditor.ExtractAllMediaInfo ??= new LibraryScopeTaskEditorOptions();
+            ScheduledTasksEditor.ScanAllIntro ??= new LibraryScopeTaskEditorOptions();
+            ScheduledTasksEditor.GenerateThumbnails ??= new LibraryScopeTaskEditorOptions();
             ScheduledTasksEditor.UpdatePlugin ??= new UpdatePluginTaskEditorOptions();
         }
 
@@ -86,6 +95,9 @@ namespace MediaInfoKeeper.Options {
             ScheduledTasksEditor.SubmitTheIntroDbMarkers.LibraryList = LibraryList;
             ScheduledTasksEditor.ExportExistingMediaInfo.LibraryList = LibraryList;
             ScheduledTasksEditor.RestoreMediaInfo.LibraryList = LibraryList;
+            ScheduledTasksEditor.ExtractAllMediaInfo.LibraryList = LibraryList;
+            ScheduledTasksEditor.ScanAllIntro.LibraryList = LibraryList;
+            ScheduledTasksEditor.GenerateThumbnails.LibraryList = LibraryList;
             ScheduledTasksEditor.UpdatePlugin.Initialize();
 
             ItemAddedTaskEntries = BuildItemAddedTaskEntries();
@@ -136,12 +148,13 @@ namespace MediaInfoKeeper.Options {
             AddGroup("插件", string.Empty,
                 nameof(PlugginEnabled),
                 nameof(RefreshQueueStatus),
+                nameof(RefreshQueueStatusButton),
                 nameof(FileChangeRefreshDelaySeconds));
 
             AddGroup("", string.Empty,
                 nameof(ItemAddedTaskEntries));
 
-            AddGroup("计划任务配置", string.Empty,
+            AddGroup("手动与定时工具", "可直接执行一次，也可到 Emby 控制台的“计划任务”页面设置自动运行时间。",
                 nameof(ScheduledTaskEntries),
                 nameof(UpdatePluginVersionStatus),
                 nameof(UpdatePluginProjectUrl),
@@ -168,16 +181,22 @@ namespace MediaInfoKeeper.Options {
 
         private GenericItemList BuildScheduledTaskEntries() {
             return new GenericItemList(new[] {
-                CreateScheduledTaskEntry("更新插件", "main.scheduled.updatePlugin", "main.scheduled.run.updatePlugin"),
-                CreateScheduledTaskEntry("刷新媒体元数据", "main.scheduled.refreshRecentMetadata",
+                CreateScheduledTaskEntry("更新插件", "检查并安装所选频道的最新版本。", "main.scheduled.updatePlugin", "main.scheduled.run.updatePlugin"),
+                CreateScheduledTaskEntry("刷新最近入库的元数据", "按配置刷新最近入库条目的元数据和图片。", "main.scheduled.refreshRecentMetadata",
                     "main.scheduled.run.refreshRecentMetadata"),
-                CreateScheduledTaskEntry("备份媒体信息", "main.scheduled.exportExistingMediaInfo",
+                CreateScheduledTaskEntry("备份已有媒体信息", "把已存在的媒体流信息保存为 JSON。", "main.scheduled.exportExistingMediaInfo",
                     "main.scheduled.run.exportExistingMediaInfo"),
-                CreateScheduledTaskEntry("恢复媒体信息", "main.scheduled.restoreMediaInfo",
+                CreateScheduledTaskEntry("从备份恢复媒体信息", "从 JSON 恢复媒体流信息，不重新探测视频。", "main.scheduled.restoreMediaInfo",
                     "main.scheduled.run.restoreMediaInfo"),
-                CreateScheduledTaskEntry("共享片头片尾", "main.scheduled.submitTheIntroDbMarkers",
+                CreateScheduledTaskEntry("共享片头片尾标记", "把本地已有标记提交到已配置的片头数据库。", "main.scheduled.submitTheIntroDbMarkers",
                     "main.scheduled.run.submitTheIntroDbMarkers"),
-                CreateScheduledTaskEntry("重启Emby", null, "main.scheduled.run.restartEmby")
+                CreateScheduledTaskEntry("安全重启 Emby", "有播放或录制时自动延后重启。", null, "main.scheduled.run.restartEmby"),
+                CreateScheduledTaskEntry("补齐缺失的媒体信息", "只处理没有媒体流的条目；不修改元数据和图片。", "main.scheduled.extractAllMediaInfo",
+                    "main.scheduled.run.extractAllMediaInfo"),
+                CreateScheduledTaskEntry("补齐缺失的片头片尾标记", "只扫描没有片头标记的剧集。", "main.scheduled.scanAllIntro",
+                    "main.scheduled.run.scanAllIntro"),
+                CreateScheduledTaskEntry("补齐缺失的视频预览缩略图", "强制处理没有时间轴预览缩略图的视频；已有缩略图不重建。", "main.scheduled.generateThumbnails",
+                    "main.scheduled.run.generateThumbnails")
             });
         }
 
@@ -193,10 +212,11 @@ namespace MediaInfoKeeper.Options {
             });
         }
 
-        private static GenericListItem CreateScheduledTaskEntry(string primaryText, string commandId, string runCommandId) {
+        private static GenericListItem CreateScheduledTaskEntry(string primaryText, string secondaryText, string commandId, string runCommandId) {
             var item = new GenericListItem {
                 PrimaryText = primaryText,
-                Button2 = new ButtonItem("执行") {
+                SecondaryText = secondaryText,
+                Button2 = new ButtonItem("立即运行") {
                     CommandId = runCommandId,
                     Icon = IconNames.play_arrow
                 }
@@ -380,6 +400,18 @@ namespace MediaInfoKeeper.Options {
             public string RestoreMediaInfoLibraries { get; set; } = string.Empty;
         }
 
+        public class LibraryScopeTaskEditorOptions : EditableOptionsBase {
+            public override string EditorTitle => string.Empty;
+
+            [Browsable(false)] public IEnumerable<EditorSelectOption> LibraryList { get; set; }
+
+            [DisplayName("媒体库范围")]
+            [Description("选择本任务要处理的媒体库；留空表示全部媒体库。")]
+            [EditMultilSelect]
+            [SelectItemsSource(nameof(LibraryList))]
+            public string Libraries { get; set; } = string.Empty;
+        }
+
         public class UpdatePluginTaskEditorOptions : EditableOptionsBase {
             public override string EditorTitle => string.Empty;
 
@@ -479,6 +511,15 @@ namespace MediaInfoKeeper.Options {
             [DisplayName("恢复媒体信息")]
             public RestoreMediaInfoTaskEditorOptions RestoreMediaInfo { get; set; } =
                 new();
+
+            [DisplayName("补齐缺失的媒体信息")]
+            public LibraryScopeTaskEditorOptions ExtractAllMediaInfo { get; set; } = new();
+
+            [DisplayName("补齐缺失的片头片尾标记")]
+            public LibraryScopeTaskEditorOptions ScanAllIntro { get; set; } = new();
+
+            [DisplayName("补齐缺失的视频预览缩略图")]
+            public LibraryScopeTaskEditorOptions GenerateThumbnails { get; set; } = new();
 
             [DisplayName("更新插件")] public UpdatePluginTaskEditorOptions UpdatePlugin { get; set; } = new();
         }

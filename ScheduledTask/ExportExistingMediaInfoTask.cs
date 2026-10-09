@@ -16,9 +16,9 @@ namespace MediaInfoKeeper.ScheduledTask {
 
         public string Key => "MediaInfoKeeperExportExistingMediaInfoTask";
 
-        public string Name => "03.备份媒体信息";
+        public string Name => "03.备份已有媒体信息";
 
-        public string Description => "按本任务配置的媒体库范围，将已存在 MediaInfo 的条目导出为 JSON，无 MediaInfo 则跳过。";
+        public string Description => "把所选媒体库中已有的媒体流信息保存为 JSON；没有媒体流信息的条目自动跳过。";
 
         public string Category => Plugin.TaskCategoryName;
 

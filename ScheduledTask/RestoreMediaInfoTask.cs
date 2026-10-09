@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -18,9 +18,9 @@ namespace MediaInfoKeeper.ScheduledTask {
 
         public string Key => "MediaInfoKeeperExtractMediaInfoTask";
 
-        public string Name => "04.恢复媒体信息";
+        public string Name => "04.从备份恢复媒体信息";
 
-        public string Description => "按本任务配置的媒体库范围，存在 JSON 则恢复媒体信息，不存在则跳过。";
+        public string Description => "为所选媒体库读取媒体信息 JSON 备份并恢复媒体流；没有备份的条目自动跳过。";
 
         public string Category => Plugin.TaskCategoryName;
 

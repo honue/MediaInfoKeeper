@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -50,7 +50,7 @@ namespace MediaInfoKeeper {
     /// </summary>
     public class Plugin : BasePlugin, IHasThumbImage, IHasUIPages, IDisposable {
         public const string PluginName = "MediaInfoKeeper";
-        public const string TaskCategoryName = "Auto-MediaInfoKeeper";
+        public const string TaskCategoryName = "MediaInfoKeeper";
 
         public static Plugin Instance { get; private set; }
         public static MediaInfoService MediaInfoService { get; private set; }

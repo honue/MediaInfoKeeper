@@ -22,9 +22,9 @@ namespace MediaInfoKeeper.ScheduledTask {
 
         public string Key => "MediaInfoKeeperSubmitTheIntroDbMarkersTask";
 
-        public string Name => "06.共享片头片尾";
+        public string Name => "06.共享片头片尾标记";
 
-        public string Description => "按本任务配置的媒体库范围，将已有片头/片尾章节标记共享到已配置 API Key 的 TheIntroDB 和 IntroDB。建议执行周期与筛选天数一致，避免重复上报。";
+        public string Description => "把所选媒体库中已有的片头片尾标记提交到已配置的 TheIntroDB 和 IntroDB；未配置 API Key 的服务不会提交。";
 
         public string Category => Plugin.TaskCategoryName;
 

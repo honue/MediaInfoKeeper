@@ -22,6 +22,13 @@ namespace MediaInfoKeeper.Options.View {
         private const string RestoreMediaInfoDialogCommandId = "main.scheduled.restoreMediaInfo";
         private const string RestoreMediaInfoRunCommandId = "main.scheduled.run.restoreMediaInfo";
         private const string RestartEmbyRunCommandId = "main.scheduled.run.restartEmby";
+        private const string ExtractAllMediaInfoRunCommandId = "main.scheduled.run.extractAllMediaInfo";
+        private const string ScanAllIntroRunCommandId = "main.scheduled.run.scanAllIntro";
+        private const string ExtractAllMediaInfoDialogCommandId = "main.scheduled.extractAllMediaInfo";
+        private const string ScanAllIntroDialogCommandId = "main.scheduled.scanAllIntro";
+        private const string GenerateThumbnailsDialogCommandId = "main.scheduled.generateThumbnails";
+        private const string GenerateThumbnailsRunCommandId = "main.scheduled.run.generateThumbnails";
+        private const string RefreshQueueStatusCommandId = "main.refreshQueueStatus";
 
         private readonly IApplicationHost applicationHost;
         private readonly PluginInfo pluginInfo;
@@ -58,6 +65,23 @@ namespace MediaInfoKeeper.Options.View {
             if (string.Equals(commandId, RestoreMediaInfoDialogCommandId, StringComparison.Ordinal))
                 return Task.FromResult<IPluginUIView>(new RestoreMediaInfoTaskDialogView(pluginInfo.Id, Options));
 
+            if (string.Equals(commandId, ExtractAllMediaInfoDialogCommandId, StringComparison.Ordinal))
+                return Task.FromResult<IPluginUIView>(
+                    new LibraryScopeTaskDialogView(pluginInfo.Id, Options, "extract", "补齐缺失的媒体信息"));
+
+            if (string.Equals(commandId, ScanAllIntroDialogCommandId, StringComparison.Ordinal))
+                return Task.FromResult<IPluginUIView>(
+                    new LibraryScopeTaskDialogView(pluginInfo.Id, Options, "intro", "补齐缺失的片头片尾标记"));
+
+            if (string.Equals(commandId, GenerateThumbnailsDialogCommandId, StringComparison.Ordinal))
+                return Task.FromResult<IPluginUIView>(
+                    new LibraryScopeTaskDialogView(pluginInfo.Id, Options, "thumbnail", "补齐缺失的视频预览缩略图"));
+
+            if (string.Equals(commandId, RefreshQueueStatusCommandId, StringComparison.Ordinal)) {
+                Options.RefreshQueueStatus = MainPageOptionsStore.BuildRefreshQueueStatus();
+                return Task.FromResult<IPluginUIView>(this);
+            }
+
             if (string.Equals(commandId, UpdatePluginRunCommandId, StringComparison.Ordinal))
                 return RunScheduledTaskAsync<UpdatePluginTask>();
 
@@ -76,6 +100,15 @@ namespace MediaInfoKeeper.Options.View {
             if (string.Equals(commandId, RestartEmbyRunCommandId, StringComparison.Ordinal))
                 return RunScheduledTaskAsync<RestartEmbyTask>();
 
+            if (string.Equals(commandId, ExtractAllMediaInfoRunCommandId, StringComparison.Ordinal))
+                return RunScheduledTaskAsync<ExtractAllMediaInfoTask>();
+
+            if (string.Equals(commandId, ScanAllIntroRunCommandId, StringComparison.Ordinal))
+                return RunScheduledTaskAsync<ScanAllIntroTask>();
+
+            if (string.Equals(commandId, GenerateThumbnailsRunCommandId, StringComparison.Ordinal))
+                return RunScheduledTaskAsync<GenerateThumbnailsTask>();
+
             return base.RunCommand(itemId, commandId, data);
         }
 
@@ -91,14 +124,22 @@ namespace MediaInfoKeeper.Options.View {
             store.SetOptions(Options);
         }
 
-        private Task<IPluginUIView> RunScheduledTaskAsync<TTask>()
+        private async Task<IPluginUIView> RunScheduledTaskAsync<TTask>()
             where TTask : IScheduledTask {
             var taskManager = applicationHost.Resolve<ITaskManager>();
-            taskManager?.QueueScheduledTask<TTask>(new TaskOptions {
+            if (taskManager == null) {
+                if (Plugin.NotificationApi != null)
+                    await Plugin.NotificationApi.DisplayMessage(User, "无法启动任务，请查看 Emby 日志").ConfigureAwait(false);
+                return this;
+            }
+
+            taskManager.QueueScheduledTask<TTask>(new TaskOptions {
                 HasManualInteraction = true
             });
-
-            return Task.FromResult<IPluginUIView>(this);
+            if (Plugin.NotificationApi != null)
+                await Plugin.NotificationApi.DisplayMessage(User, "任务已启动，可在 Emby 计划任务中查看进度").ConfigureAwait(false);
+            Options.RefreshQueueStatus = MainPageOptionsStore.BuildRefreshQueueStatus();
+            return this;
         }
     }
 }

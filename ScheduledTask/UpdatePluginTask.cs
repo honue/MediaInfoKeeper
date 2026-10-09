@@ -61,9 +61,9 @@ namespace MediaInfoKeeper.ScheduledTask {
 
         public string Key => "UpdatePluginTask";
 
-        public string Name => "01.更新插件";
+        public string Name => "01.检查并更新插件";
 
-        public string Description => "更新插件至最新版本";
+        public string Description => "检查所选更新频道；有新版本时下载并安装，完成后需要重启 Emby 才会生效。";
 
         public string Category => Plugin.TaskCategoryName;
 

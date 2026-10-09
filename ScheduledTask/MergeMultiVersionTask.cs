@@ -48,9 +48,9 @@ namespace MediaInfoKeeper.ScheduledTask {
 
         public string Key => "MergeMultiVersionTask";
 
-        public string Name => "05.合并多版本";
+        public string Name => "05.合并重复的多版本条目";
 
-        public string Description => "按偏好设置合并同一电影/电视剧的多个版本，支持跨媒体库操作。";
+        public string Description => "按多版本设置合并同一电影或剧集的不同版本；可能跨媒体库处理。";
 
         public string Category => Plugin.TaskCategoryName;
 

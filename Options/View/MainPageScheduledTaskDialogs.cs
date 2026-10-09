@@ -73,6 +73,34 @@ namespace MediaInfoKeeper.Options.View {
     }
 
     internal sealed class
+        LibraryScopeTaskDialogView : MainPageTaskDialogView<MainPageOptions.LibraryScopeTaskEditorOptions> {
+        private readonly MainPageOptions owner;
+        private readonly string task;
+
+        public LibraryScopeTaskDialogView(string pluginId, MainPageOptions owner, string task, string caption)
+            : base(pluginId, GetOptions(owner, task), caption) {
+            this.owner = owner;
+            this.task = task;
+        }
+
+        public override async Task OnOkCommand(string providerId, string commandId, string data) {
+            await base.OnOkCommand(providerId, commandId, data).ConfigureAwait(false);
+            if (owner?.ScheduledTasksEditor == null) return;
+
+            if (task == "extract") owner.ScheduledTasksEditor.ExtractAllMediaInfo = Options;
+            else if (task == "intro") owner.ScheduledTasksEditor.ScanAllIntro = Options;
+            else owner.ScheduledTasksEditor.GenerateThumbnails = Options;
+        }
+
+        private static MainPageOptions.LibraryScopeTaskEditorOptions GetOptions(MainPageOptions owner, string task) {
+            var editor = owner?.ScheduledTasksEditor;
+            if (task == "extract") return editor?.ExtractAllMediaInfo ?? new MainPageOptions.LibraryScopeTaskEditorOptions();
+            if (task == "intro") return editor?.ScanAllIntro ?? new MainPageOptions.LibraryScopeTaskEditorOptions();
+            return editor?.GenerateThumbnails ?? new MainPageOptions.LibraryScopeTaskEditorOptions();
+        }
+    }
+
+    internal sealed class
         RestoreMediaInfoTaskDialogView : MainPageTaskDialogView<MainPageOptions.RestoreMediaInfoTaskEditorOptions> {
         private readonly MainPageOptions owner;
 
