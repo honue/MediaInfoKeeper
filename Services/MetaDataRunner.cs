@@ -240,7 +240,7 @@ namespace MediaInfoKeeper.Services {
                 Plugin.SharedLogger?.Error($"元数据刷新失败 item={displayName}");
                 Plugin.SharedLogger?.Error(ex.Message);
                 Plugin.SharedLogger?.Debug(ex.StackTrace);
-                request.Completion.TrySetResult(true);
+                request.Completion.TrySetException(ex);
             }
             finally {
                 lock (QueueSync) {
