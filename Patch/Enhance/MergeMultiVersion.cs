@@ -343,9 +343,9 @@ namespace MediaInfoKeeper.Patch {
                         true);
                 }
 
-                if (itemsToRefresh.Count > 0 && !ReferenceEquals(alternateRefreshOptions, __result))
+                if (itemsToRefresh.Length > 0 && !ReferenceEquals(alternateRefreshOptions, __result))
                     logger?.Debug("MergeMultiVersion - 跨媒体库同步刷新已禁用图片替换: item={0}, count={1}",
-                        item.Name, itemsToRefresh.Count);
+                        item.Name, itemsToRefresh.Length);
             }
         }
 
@@ -356,12 +356,17 @@ namespace MediaInfoKeeper.Patch {
             // synchronizes grouping and metadata. Reusing a caller's full
             // image refresh options can clear that library's existing local
             // artwork while the source library is being rescanned.
-            return new MetadataRefreshOptions(options) {
+            var alternateOptions = new MetadataRefreshOptions(options) {
                 ImageRefreshMode = MetadataRefreshMode.ValidationOnly,
                 ReplaceAllImages = false,
                 ReplaceThumbnailImages = false,
                 EnableThumbnailImageExtraction = false
             };
+
+            // ClearImages has no refresh-options argument, so carry this cross-library
+            // refresh identity into the provider refresh scope explicitly.
+            ImageClearGuard.MarkExternalImageProtection(alternateOptions);
+            return alternateOptions;
         }
     }
 }

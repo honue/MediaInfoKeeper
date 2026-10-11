@@ -2,8 +2,11 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using HarmonyLib;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Logging;
 
@@ -16,6 +19,9 @@ namespace MediaInfoKeeper.Patch {
         private static MethodInfo clearImages;
         private static ILogger logger;
         private static bool isEnabled;
+        private static readonly AsyncLocal<int> ExternalImageProtectionDepth = new();
+        private static readonly ConditionalWeakTable<MetadataRefreshOptions, object>
+            ExternalImageProtectionOptions = new();
 
         public static bool IsReady => harmony != null && clearImages != null;
 
@@ -55,6 +61,19 @@ namespace MediaInfoKeeper.Patch {
             isEnabled = enableGuard;
         }
 
+        public static void MarkExternalImageProtection(MetadataRefreshOptions options) {
+            if (options != null) ExternalImageProtectionOptions.GetValue(options, _ => new object());
+        }
+
+        // ClearImages receives no refresh options; the provider/runner patches enter this
+        // scope while the marked refresh is executing.
+        public static IDisposable BeginExternalImageProtection(MetadataRefreshOptions options) {
+            if (options == null || !ExternalImageProtectionOptions.TryGetValue(options, out _)) return null;
+
+            ExternalImageProtectionDepth.Value++;
+            return new ExternalImageProtectionScope();
+        }
+
         private static void ClearImagesPrefix(BaseItem item, ref ImageType[] imageTypesToClear,
             ref int numBackdropToKeep) {
             if (!isEnabled ||
@@ -63,15 +82,18 @@ namespace MediaInfoKeeper.Patch {
                 imageTypesToClear == null)
                 return;
 
-            var protectedImages = GetProtectedImages(item);
+            var protectExternalImages = ExternalImageProtectionDepth.Value > 0;
+            var protectedImages = GetProtectedImages(item, protectExternalImages);
             if (protectedImages.Length == 0) return;
 
-            var externalImageCount = protectedImages.Count(image => IsOutsideItemFolder(
-                image.Path,
-                Path.GetDirectoryName(item.Path ?? item.FileName)));
-            if (externalImageCount > 0)
-                logger?.Debug("图片清理保护: item={0}, 外部缓存本地图={1}",
-                    item.FileName ?? item.Path ?? item.InternalId.ToString(), externalImageCount);
+            if (protectExternalImages) {
+                var externalImageCount = protectedImages.Count(image => IsOutsideItemFolder(
+                    image.Path,
+                    GetItemFolder(item)));
+                if (externalImageCount > 0)
+                    logger?.Debug("图片清理保护: item={0}, 外部缓存本地图={1}",
+                        item.FileName ?? item.Path ?? item.InternalId.ToString(), externalImageCount);
+            }
 
             var clearTypes = imageTypesToClear;
             var protectedClearTypes = protectedImages
@@ -112,10 +134,10 @@ namespace MediaInfoKeeper.Patch {
             return keepCount;
         }
 
-        private static ProtectedImage[] GetProtectedImages(BaseItem item) {
+        private static ProtectedImage[] GetProtectedImages(BaseItem item, bool protectExternalImages) {
             var itemPath = string.IsNullOrWhiteSpace(item.Path) ? item.FileName : item.Path;
-            var folder = string.IsNullOrWhiteSpace(itemPath) ? null : Path.GetDirectoryName(itemPath);
-            var basename = string.IsNullOrWhiteSpace(itemPath) ? null : Path.GetFileNameWithoutExtension(itemPath);
+            var folder = GetItemFolder(item, itemPath);
+            var basename = GetItemBasename(item, itemPath, folder);
 
             // Emby accepts both item-prefixed names (movie-poster.jpg) and the
             // directory-level names (poster.jpg, fanart.jpg, clearlogo.png).
@@ -154,22 +176,42 @@ namespace MediaInfoKeeper.Patch {
             var localImages = (item.ImageInfos ?? Array.Empty<ItemImageInfo>())
                 .Where(image => image != null)
                 .Select(image => new ProtectedImage(image.Type, image.Path))
-                // When "save images to media folder" is disabled, Emby stores
-                // the same local image records under its metadata/cache root.
-                // Some versions mark those records as remote even though the
-                // image is already present on disk, so the path check is the
-                // reliable signal here.
+                // File.Exists covers Emby versions that label a disk cache image as remote.
+                // Only cross-library sync protects those caches; ordinary identification
+                // must still be able to clear artwork from the previous provider IDs.
                 .Where(image => !string.IsNullOrWhiteSpace(image.Path) && File.Exists(image.Path))
                 .Where(image => candidateImages.Any(candidateImage =>
                                      candidateImage.Type == image.Type &&
                                      PathsEqual(candidateImage.Path, image.Path)) ||
-                                string.IsNullOrWhiteSpace(folder) ||
-                                IsOutsideItemFolder(image.Path, folder))
+                                protectExternalImages &&
+                                (string.IsNullOrWhiteSpace(folder) || IsOutsideItemFolder(image.Path, folder)))
                 .GroupBy(image => image.Type + "\n" + NormalizePath(image.Path))
                 .Select(group => group.First())
                 .ToArray();
 
             return localImages;
+        }
+
+        private static string GetItemFolder(BaseItem item) {
+            var itemPath = string.IsNullOrWhiteSpace(item?.Path) ? item?.FileName : item.Path;
+            return GetItemFolder(item, itemPath);
+        }
+
+        private static string GetItemFolder(BaseItem item, string itemPath) {
+            if (string.IsNullOrWhiteSpace(itemPath)) return null;
+
+            if (item is Folder)
+                return itemPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, '/', '\\');
+
+            return Path.GetDirectoryName(itemPath);
+        }
+
+        private static string GetItemBasename(BaseItem item, string itemPath, string folder) {
+            if (string.IsNullOrWhiteSpace(itemPath)) return null;
+
+            return item is Folder
+                ? Path.GetFileName(folder)
+                : Path.GetFileNameWithoutExtension(itemPath);
         }
 
         private static string FindSiblingImagePath(string folder, string filenameWithoutExtension) {
@@ -247,6 +289,17 @@ namespace MediaInfoKeeper.Patch {
             public ImageType Type { get; }
 
             public string Path { get; }
+        }
+
+        private sealed class ExternalImageProtectionScope : IDisposable {
+            private bool disposed;
+
+            public void Dispose() {
+                if (disposed) return;
+
+                disposed = true;
+                ExternalImageProtectionDepth.Value = Math.Max(0, ExternalImageProtectionDepth.Value - 1);
+            }
         }
     }
 }
