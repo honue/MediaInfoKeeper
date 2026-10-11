@@ -58,6 +58,12 @@ namespace MediaInfoKeeper.Web {
         public string[] Ids { get; set; }
     }
 
+    [Route("/MediaInfoKeeper/Items/GenerateThumbnails", "POST")]
+    [Authenticated(Roles = "Admin")]
+    public class GenerateThumbnailsRequest : IReturn<MediaInfoMenuResponse> {
+        public string[] Ids { get; set; }
+    }
+
     [Route("/MediaInfoKeeper/Items/SetIntro", "POST")]
     [Authenticated(Roles = "Admin")]
     public class SetIntroRequest : IReturn<MediaInfoMenuResponse> {

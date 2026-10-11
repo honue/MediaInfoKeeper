@@ -21,6 +21,7 @@ namespace MediaInfoKeeper.Web {
         private readonly ClearIntroRouteHandler _clearIntroHandler;
         private readonly DeleteMediaInfoPersistRouteHandler _deletePersistHandler;
         private readonly ExtractMediaInfoRouteHandler _extractHandler;
+        private readonly GenerateThumbnailsRouteHandler _generateThumbnailsHandler;
         private readonly IItemRepository _itemRepository;
         private readonly IJsonSerializer _jsonSerializer;
         private readonly ILibraryManager _libraryManager;
@@ -44,6 +45,7 @@ namespace MediaInfoKeeper.Web {
                     itemRepository);
             _scanIntroHandler = new ScanIntroRouteHandler(Plugin.LibraryService.ExpandItem);
             _scanExternalFilesHandler = new ScanExternalFilesRouteHandler(Plugin.LibraryService.ExpandItem);
+            _generateThumbnailsHandler = new GenerateThumbnailsRouteHandler(Plugin.LibraryService.ExpandItem);
             _setIntroHandler =
                 new SetIntroRouteHandler(Plugin.LibraryService.ExpandItem, libraryManager, itemRepository);
             _clearIntroHandler =
@@ -180,6 +182,10 @@ namespace MediaInfoKeeper.Web {
 
         public MediaInfoMenuResponse Post(ScanExternalFilesRequest request) {
             return _scanExternalFilesHandler.Handle(request);
+        }
+
+        public MediaInfoMenuResponse Post(GenerateThumbnailsRequest request) {
+            return _generateThumbnailsHandler.Handle(request);
         }
 
         public MediaInfoMenuResponse Post(SetIntroRequest request) {
