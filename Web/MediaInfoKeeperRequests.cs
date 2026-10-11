@@ -16,12 +16,6 @@ namespace MediaInfoKeeper.Web {
         public string Web { get; set; }
     }
 
-    [Route("/{Web}/modules/shortcuts.js", "GET", IsHidden = true)]
-    [Unauthenticated]
-    public class ShortcutMenuRequest {
-        public string Web { get; set; }
-    }
-
     [Route("/{Web}/modules/refreshdialog/refreshdialog.js", "GET", IsHidden = true)]
     [Unauthenticated]
     public class RefreshDialogRequest {

@@ -62,11 +62,6 @@ namespace MediaInfoKeeper.Web {
                 GetStreamBytes(PluginWebResourceLoader.EdeJs), "application/x-javascript");
         }
 
-        public object Get(ShortcutMenuRequest request) {
-            return _resultFactory.GetResult(PluginWebResourceLoader.ModifiedShortcutsString.AsSpan(),
-                "application/x-javascript");
-        }
-
         public object Get(RefreshDialogRequest request) {
             return _resultFactory.GetResult(PluginWebResourceLoader.ModifiedRefreshDialogString.AsSpan(),
                 "application/x-javascript");
