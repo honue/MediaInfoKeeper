@@ -42,6 +42,21 @@
 3. 务必重命名为 `MediaInfoKeeper.dll`，否则后续自动更新会有两个 dll 存在。
 4. 重启 Emby，在插件页面完成配置。
 
+🧪 Beta 仓库更新
+----------------
+
+**自定义 Beta 仓库更新功能仅供各位 PR 提交者进行插件开发与测试使用，不适用于日常使用。日常使用请选择官方 `Stable` 更新频道。**
+
+在插件的「计划任务配置 → 更新插件 → 配置」中将更新频道设为 `Beta`，即可填写「Beta GitHub 仓库链接」，例如：
+
+```text
+https://github.com/xxx/MediaInfoKeeper
+```
+
+填写仓库首页地址并保存后，运行「更新插件」即可从该仓库的最新 Release 更新。仓库需要发布 `MediaInfoKeeper.dll` 或对应平台的 DLL；Beta 会选择最新发布的正式版或预发布版。链接默认留空，留空时使用官方仓库 `https://github.com/honue/MediaInfoKeeper`。选择 `Stable` 时隐藏此项，并使用官方仓库的正式版。
+
+仓库切换时，即使版本号相同也会安装所选仓库的插件。GitHub Actions 会自动记录构建来源；手动构建时可传入 `/p:ReleaseRepository=sisheng36/MediaInfoKeeper`，以便后续正确识别已安装的仓库版本。自定义仓库的兼容版本范围读取该 Release 标签下的 `Version.json`。
+
 🧩 兼容性
 -----------
 

@@ -305,6 +305,17 @@ namespace MediaInfoKeeper {
             if (string.IsNullOrWhiteSpace(effectiveUpdatePluginOptions.UpdateChannel))
                 effectiveUpdatePluginOptions.UpdateChannel = MainPageOptions.UpdateChannelOption.Stable.ToString();
 
+            effectiveUpdatePluginOptions.BetaRepositoryUrl =
+                effectiveUpdatePluginOptions.BetaRepositoryUrl?.Trim() ?? string.Empty;
+            try {
+                PluginUpdateSource.Resolve(effectiveUpdatePluginOptions.UpdateChannel,
+                    effectiveUpdatePluginOptions.BetaRepositoryUrl);
+            }
+            catch (ArgumentException ex) {
+                Logger.Warn("Beta GitHub 仓库链接校验失败：{0}", ex.Message);
+                return false;
+            }
+
             var netWorkOptions = options.GetNetWorkOptions();
             if (!LocalDiscoveryAddress.TryValidateConfiguredValue(
                     netWorkOptions.CustomLocalDiscoveryAddress,
@@ -742,15 +753,25 @@ namespace MediaInfoKeeper {
 
             var status = ItemStatus.Unknown;
             var caption = "版本信息";
+            var matchesCurrentRepository = false;
+            var updateOptions = Options.GetEffectiveUpdatePluginOptions();
+            try {
+                matchesCurrentRepository = PluginUpdateSource.Resolve(updateOptions.UpdateChannel,
+                    updateOptions.BetaRepositoryUrl).MatchesAssembly(GetType().Assembly);
+            }
+            catch (ArgumentException) {
+                return new StatusItem("更新仓库链接无效", $"当前版本：{currentText}", ItemStatus.Warning);
+            }
 
             if (!string.IsNullOrWhiteSpace(normalizedCurrent) && !string.IsNullOrWhiteSpace(normalizedLatest)) {
-                if (string.Equals(normalizedCurrent, normalizedLatest, StringComparison.OrdinalIgnoreCase)) {
+                if (matchesCurrentRepository &&
+                    string.Equals(normalizedCurrent, normalizedLatest, StringComparison.OrdinalIgnoreCase)) {
                     status = ItemStatus.Succeeded;
                     caption = "已是最新版本";
                 }
                 else {
                     status = ItemStatus.Warning;
-                    caption = "发现新版本";
+                    caption = matchesCurrentRepository ? "发现新版本" : "更新仓库已变更";
                 }
             }
 

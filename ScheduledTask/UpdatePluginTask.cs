@@ -16,6 +16,7 @@ using MediaBrowser.Model.Activity;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Serialization;
 using MediaBrowser.Model.Tasks;
+using MediaInfoKeeper.Common;
 using MediaInfoKeeper.Options;
 using MediaInfoKeeper.Services;
 
@@ -56,9 +57,6 @@ namespace MediaInfoKeeper.ScheduledTask {
 
         private static string PluginAssemblyFilename => Assembly.GetExecutingAssembly().GetName().Name + ".dll";
 
-        private static string RepoVersionUrl =>
-            "https://raw.githubusercontent.com/honue/MediaInfoKeeper/master/Version.json";
-
         public string Key => "UpdatePluginTask";
 
         public string Name => "01.更新插件";
@@ -93,16 +91,19 @@ namespace MediaInfoKeeper.ScheduledTask {
                 var updateChannel = string.IsNullOrWhiteSpace(updatePluginOptions?.UpdateChannel)
                     ? GitHubOptions.UpdateChannelOption.Stable.ToString()
                     : updatePluginOptions.UpdateChannel;
+                var updateSource = PluginUpdateSource.Resolve(updateChannel, updatePluginOptions?.BetaRepositoryUrl);
+                var matchesCurrentRepository = updateSource.MatchesAssembly(Assembly.GetExecutingAssembly());
                 var currentVersionText = GetCurrentVersion();
                 var embyVersion = Plugin.Instance?.AppHost?.ApplicationVersion ?? new Version(0, 0, 0, 0);
 
                 logger.Info(
-                    "开始检查插件更新：当前插件版本={0}，当前Emby版本={1}，更新频道={2}",
+                    "开始检查插件更新：当前插件版本={0}，当前Emby版本={1}，更新频道={2}，更新仓库={3}",
                     currentVersionText,
                     embyVersion,
-                    updateChannel);
+                    updateChannel,
+                    updateSource.RepositoryUrl);
 
-                var apiResult = Plugin.ReleaseInfoService.SelectCachedReleaseForChannel(updateChannel);
+                var apiResult = Plugin.ReleaseInfoService.SelectCachedReleaseForChannel(updateChannel, updateSource);
                 var cachedReleaseTag = GetReleaseTag(apiResult);
                 var shouldRefetchRelease = string.IsNullOrWhiteSpace(cachedReleaseTag) ||
                                            string.Equals(currentVersionText, cachedReleaseTag,
@@ -110,7 +111,7 @@ namespace MediaInfoKeeper.ScheduledTask {
                 if (shouldRefetchRelease) {
                     logger.Info("缓存中没有明确的新版本，正在重新获取 GitHub Releases 以确认最新插件版本。");
                     apiResult = await Plugin.ReleaseInfoService
-                        .RefreshAndSelectReleaseForChannelAsync(cancellationToken, updateChannel, githubToken)
+                        .RefreshAndSelectReleaseForChannelAsync(cancellationToken, updateChannel, githubToken, updateSource)
                         .ConfigureAwait(false);
                 }
                 else {
@@ -122,7 +123,8 @@ namespace MediaInfoKeeper.ScheduledTask {
 
                 var latestReleaseTag = GetReleaseTag(apiResult);
                 var compatibility =
-                    await FetchCompatibilityManifest(cancellationToken, updateChannel, apiResult.prerelease)
+                    await FetchCompatibilityManifest(cancellationToken, updateChannel, apiResult.prerelease,
+                            updateSource.GetVersionUrl(latestReleaseTag), githubToken)
                         .ConfigureAwait(false);
                 var (minVersion, maxVersion) = GetEmbyVersionRange(compatibility);
                 logger.Info(
@@ -133,12 +135,16 @@ namespace MediaInfoKeeper.ScheduledTask {
                     minVersion?.ToString() ?? "*",
                     maxVersion?.ToString() ?? "*");
 
-                if (string.Equals(currentVersionText, latestReleaseTag, StringComparison.OrdinalIgnoreCase)) {
-                    logger.Info("无需下载：已重新检查最新 Release，目标 Tag 与当前插件版本一致，tag={0}", latestReleaseTag);
+                if (matchesCurrentRepository &&
+                    string.Equals(currentVersionText, latestReleaseTag, StringComparison.OrdinalIgnoreCase)) {
+                    logger.Info("无需下载：已重新检查最新 Release，目标仓库及 Tag 与当前插件一致，tag={0}", latestReleaseTag);
                     await DisplayMessageAsync($"插件已是最新版本：{currentVersionText}").ConfigureAwait(false);
                     progress.Report(100);
                     return;
                 }
+
+                if (!matchesCurrentRepository)
+                    logger.Info("更新仓库与当前插件来源不同，将安装所选仓库的插件：{0}", updateSource.RepositoryUrl);
 
                 if (!IsEmbyVersionCompatible(compatibility, embyVersion, out var incompatibleReason)) {
                     logger.Warn("跳过插件更新：{0}", incompatibleReason);
@@ -300,11 +306,12 @@ namespace MediaInfoKeeper.ScheduledTask {
         private async Task<PluginCompatibilityInfo> FetchCompatibilityManifest(
             CancellationToken cancellationToken,
             string updateChannel,
-            bool isPrerelease) {
+            bool isPrerelease,
+            string versionUrl,
+            string githubToken) {
             try {
-                var githubToken = Plugin.Instance.Options.GetEffectiveUpdatePluginOptions()?.GitHubToken;
                 var manifestRequestOptions = new HttpRequestOptions {
-                    Url = RepoVersionUrl,
+                    Url = versionUrl,
                     CancellationToken = cancellationToken,
                     AcceptHeader = "application/json",
                     UserAgent = "MediaInfoKeeper",
@@ -334,7 +341,7 @@ namespace MediaInfoKeeper.ScheduledTask {
                 if (compatibility != null) return compatibility;
             }
             catch (Exception ex) {
-                logger.Debug("加载 Version.json 失败：url={0}, error={1}", RepoVersionUrl, ex.Message);
+                logger.Debug("加载 Version.json 失败：url={0}, error={1}", versionUrl, ex.Message);
             }
 
             logger.Info("未获取到 Version.json 兼容信息，默认允许更新。");

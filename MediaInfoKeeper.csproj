@@ -15,11 +15,17 @@
         <Error Condition="'$(TokenizerBundle)' == 'single-rid' and '$(TokenizerRid)' == ''" Text="TokenizerRid must be specified when TokenizerBundle is 'single-rid'."/>
         <Error Condition="'$(TokenizerBundle)' == 'single-rid' and '$(TokenizerRid)' != 'win-x64' and '$(TokenizerRid)' != 'win-arm64' and '$(TokenizerRid)' != 'linux-x64' and '$(TokenizerRid)' != 'linux-arm64' and '$(TokenizerRid)' != 'osx-x64' and '$(TokenizerRid)' != 'osx-arm64'" Text="TokenizerRid must be one of: win-x64, win-arm64, linux-x64, linux-arm64, osx-x64, osx-arm64."/>
     </Target>
-    <Target Name="PrepareReleaseTagMetadata" BeforeTargets="GetAssemblyAttributes" Condition="'$(ReleaseTag)' != ''">
+    <Target Name="PrepareReleaseTagMetadata" BeforeTargets="GetAssemblyAttributes">
         <ItemGroup Condition="'$(ReleaseTag)' != ''">
             <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
                 <_Parameter1>ReleaseTag</_Parameter1>
                 <_Parameter2>$(ReleaseTag)</_Parameter2>
+            </AssemblyAttribute>
+        </ItemGroup>
+        <ItemGroup Condition="'$(ReleaseRepository)' != ''">
+            <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+                <_Parameter1>ReleaseRepository</_Parameter1>
+                <_Parameter2>$(ReleaseRepository)</_Parameter2>
             </AssemblyAttribute>
         </ItemGroup>
     </Target>

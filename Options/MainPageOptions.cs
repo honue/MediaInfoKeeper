@@ -399,6 +399,11 @@ namespace MediaInfoKeeper.Options {
             [SelectItemsSource(nameof(UpdateChannelList))]
             public string UpdateChannel { get; set; } = UpdateChannelOption.Stable.ToString();
 
+            [DisplayName("Beta GitHub 仓库链接")]
+            [Description("留空使用官方仓库；填写仓库首页链接，例如 https://github.com/sisheng36/MediaInfoKeeper。将从该仓库的最新 Release 下载插件，仓库需发布 MediaInfoKeeper.dll 或对应平台的 DLL。")]
+            [VisibleCondition(nameof(UpdateChannel), ValueCondition.IsEqual, nameof(UpdateChannelOption.Beta))]
+            public string BetaRepositoryUrl { get; set; } = string.Empty;
+
             [DisplayName("允许服务器自动重启以便应用插件更新生效")]
             [Description("服务器将仅在空闲期间（此时没有活动用户）重新启动。")]
             public bool RestartEmbyAfterUpdate { get; set; } = false;
@@ -424,6 +429,10 @@ namespace MediaInfoKeeper.Options {
                 var itemLookup = new Dictionary<string, EditorBase>(StringComparer.OrdinalIgnoreCase);
                 foreach (var item in root.EditorItems) {
                     var key = item.Name ?? item.Id;
+                    if (item is EditorText text &&
+                        string.Equals(key, nameof(BetaRepositoryUrl), StringComparison.OrdinalIgnoreCase))
+                        text.AllowEmpty = true;
+
                     items.Add(item);
                     if (!string.IsNullOrEmpty(key) && !itemLookup.ContainsKey(key)) itemLookup.Add(key, item);
                 }
@@ -452,6 +461,7 @@ namespace MediaInfoKeeper.Options {
                     nameof(GitHubToken),
                     nameof(DownloadUrlPrefix),
                     nameof(UpdateChannel),
+                    nameof(BetaRepositoryUrl),
                     nameof(RestartEmbyAfterUpdate));
 
                 root.EditorItems = groupedItems.Count > 0 ? groupedItems.ToArray() : items.ToArray();

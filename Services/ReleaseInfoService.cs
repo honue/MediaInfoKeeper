@@ -33,6 +33,7 @@ namespace MediaInfoKeeper.Services {
 
         private Timer refreshTimer;
         private List<ReleaseInfo> releaseCache = new();
+        private string releaseRepositoryCache;
         private string releaseHistoryBodyCache;
         private string releaseHistoryChannelCache;
 
@@ -42,20 +43,21 @@ namespace MediaInfoKeeper.Services {
             this.getOptions = getOptions;
         }
 
-        private static string RepoReleaseUrlTemplate =>
-            $"https://api.github.com/repos/honue/MediaInfoKeeper/releases?per_page={ReleasePageSize}&page={{0}}";
-
         public string LatestVersion {
             get {
                 EnsureHistoryForCurrentChannel();
-                return latestVersionCache;
+                lock (syncRoot) {
+                    return latestVersionCache;
+                }
             }
         }
 
         public string HistoryBody {
             get {
                 EnsureHistoryForCurrentChannel();
-                return releaseHistoryBodyCache;
+                lock (syncRoot) {
+                    return releaseHistoryBodyCache;
+                }
             }
         }
 
@@ -109,16 +111,12 @@ namespace MediaInfoKeeper.Services {
         }
 
         public void RefreshCache() {
-            var currentChannel = GetSelectedUpdateChannel();
-            var releases = FetchAllReleases(CancellationToken.None, GetGitHubToken());
-            var historyInfo = BuildReleaseHistoryInfo(releases, currentChannel);
-
-            lock (syncRoot) {
-                releaseCache = releases;
-                releaseHistoryChannelCache = currentChannel;
-                releaseHistoryBodyCache = historyInfo.HistoryBody;
-                latestVersionCache = historyInfo.LatestVersion;
-            }
+            var options = getOptions()?.GetEffectiveUpdatePluginOptions();
+            var currentChannel = options?.UpdateChannel ?? MainPageOptions.UpdateChannelOption.Stable.ToString();
+            var source = PluginUpdateSource.Resolve(currentChannel, options?.BetaRepositoryUrl);
+            var releases = FetchAllReleasesAsync(CancellationToken.None, options?.GitHubToken, source)
+                .GetAwaiter().GetResult();
+            StoreReleaseCache(releases, currentChannel, source);
         }
 
         public static DateTimeOffset GetReleaseSortTime(string publishedAt, string createdAt) {
@@ -132,17 +130,19 @@ namespace MediaInfoKeeper.Services {
         public async Task<ReleaseInfo> RefreshAndSelectReleaseForChannelAsync(
             CancellationToken cancellationToken,
             string updateChannel,
-            string githubToken) {
-            var releases = await FetchAllReleasesAsync(cancellationToken, githubToken).ConfigureAwait(false);
-            StoreReleaseCache(releases);
-            UpdateHistoryCacheFromReleases(releases, updateChannel);
+            string githubToken,
+            PluginUpdateSource source) {
+            var releases = await FetchAllReleasesAsync(cancellationToken, githubToken, source).ConfigureAwait(false);
+            StoreReleaseCache(releases, updateChannel, source);
             return SelectReleaseForChannel(releases, updateChannel);
         }
 
-        public ReleaseInfo SelectCachedReleaseForChannel(string updateChannel) {
+        public ReleaseInfo SelectCachedReleaseForChannel(string updateChannel, PluginUpdateSource source) {
             List<ReleaseInfo> releases;
             lock (syncRoot) {
-                if (releaseCache.Count == 0) return null;
+                if (!string.Equals(releaseRepositoryCache, source.Repository, StringComparison.OrdinalIgnoreCase) ||
+                    releaseCache.Count == 0)
+                    return null;
 
                 releases = releaseCache.ToList();
             }
@@ -242,56 +242,59 @@ namespace MediaInfoKeeper.Services {
             }
         }
 
-        private string GetSelectedUpdateChannel() {
-            var updateChannel = getOptions()?.GetEffectiveUpdatePluginOptions()?.UpdateChannel;
-            return string.IsNullOrWhiteSpace(updateChannel)
-                ? MainPageOptions.UpdateChannelOption.Stable.ToString()
-                : updateChannel;
-        }
-
-        private string GetGitHubToken() {
-            return getOptions()?.GetEffectiveUpdatePluginOptions()?.GitHubToken;
-        }
-
         private void EnsureHistoryForCurrentChannel() {
-            var currentChannel = GetSelectedUpdateChannel();
-            List<ReleaseInfo> releases;
-            lock (syncRoot) {
-                if (string.Equals(releaseHistoryChannelCache, currentChannel, StringComparison.Ordinal) ||
-                    releaseCache.Count == 0)
-                    return;
+            var options = getOptions()?.GetEffectiveUpdatePluginOptions();
+            var currentChannel = options?.UpdateChannel ?? MainPageOptions.UpdateChannelOption.Stable.ToString();
+            PluginUpdateSource source;
+            try {
+                source = PluginUpdateSource.Resolve(currentChannel, options?.BetaRepositoryUrl);
+            }
+            catch (ArgumentException ex) {
+                lock (syncRoot) {
+                    releaseRepositoryCache = null;
+                    latestVersionCache = "获取失败";
+                    releaseHistoryBodyCache = ex.Message;
+                }
 
-                releases = releaseCache.ToList();
+                return;
             }
 
-            UpdateHistoryCacheFromReleases(releases, currentChannel);
-        }
-
-        private void StoreReleaseCache(List<ReleaseInfo> releases) {
+            var shouldRefresh = false;
             lock (syncRoot) {
-                releaseCache = releases ?? new List<ReleaseInfo>();
+                if (!string.Equals(releaseRepositoryCache, source.Repository, StringComparison.OrdinalIgnoreCase)) {
+                    latestVersionCache = null;
+                    releaseHistoryBodyCache = null;
+                    shouldRefresh = true;
+                }
+                else if (!string.Equals(releaseHistoryChannelCache, currentChannel, StringComparison.OrdinalIgnoreCase)) {
+                    var historyInfo = BuildReleaseHistoryInfo(releaseCache, currentChannel);
+                    releaseHistoryChannelCache = currentChannel;
+                    releaseHistoryBodyCache = historyInfo.HistoryBody;
+                    latestVersionCache = historyInfo.LatestVersion;
+                }
             }
+
+            if (shouldRefresh) RefreshInBackground();
         }
 
-        private void UpdateHistoryCacheFromReleases(List<ReleaseInfo> releases, string updateChannel) {
+        private void StoreReleaseCache(List<ReleaseInfo> releases, string updateChannel, PluginUpdateSource source) {
             var historyInfo = BuildReleaseHistoryInfo(releases, updateChannel);
             lock (syncRoot) {
+                releaseCache = releases ?? new List<ReleaseInfo>();
+                releaseRepositoryCache = source.Repository;
                 releaseHistoryChannelCache = updateChannel;
                 releaseHistoryBodyCache = historyInfo.HistoryBody;
                 latestVersionCache = historyInfo.LatestVersion;
             }
         }
 
-        private List<ReleaseInfo> FetchAllReleases(CancellationToken cancellationToken, string githubToken) {
-            return FetchAllReleasesAsync(cancellationToken, githubToken).GetAwaiter().GetResult();
-        }
-
         private async Task<List<ReleaseInfo>> FetchAllReleasesAsync(
             CancellationToken cancellationToken,
-            string githubToken) {
+            string githubToken,
+            PluginUpdateSource source) {
             var releases = new List<ReleaseInfo>();
             for (var page = 1; page <= MaxReleasePages; page++) {
-                var releaseResults = await FetchReleasePageAsync(page, cancellationToken, githubToken)
+                var releaseResults = await FetchReleasePageAsync(page, cancellationToken, githubToken, source)
                     .ConfigureAwait(false);
                 releases.AddRange(releaseResults);
                 if (releaseResults.Count < ReleasePageSize) break;
@@ -303,9 +306,10 @@ namespace MediaInfoKeeper.Services {
         private async Task<List<ReleaseInfo>> FetchReleasePageAsync(
             int page,
             CancellationToken cancellationToken,
-            string githubToken) {
+            string githubToken,
+            PluginUpdateSource source) {
             var releaseRequestOptions = new HttpRequestOptions {
-                Url = string.Format(RepoReleaseUrlTemplate, page),
+                Url = source.GetReleasesUrl(page, ReleasePageSize),
                 CancellationToken = cancellationToken,
                 AcceptHeader = "application/json",
                 UserAgent = "MediaInfoKeeper",
@@ -324,8 +328,8 @@ namespace MediaInfoKeeper.Services {
             }
 
             if ((int)response.StatusCode < 200 || (int)response.StatusCode >= 300) {
-                logger.Error("获取 Release 失败：page={0}, status={1}, body={2}", page, (int)response.StatusCode,
-                    releaseResponseBody);
+                logger.Error("获取 Release 失败：repository={0}, page={1}, status={2}, body={3}", source.Repository, page,
+                    (int)response.StatusCode, releaseResponseBody);
                 throw new Exception($"获取 Release 失败: {(int)response.StatusCode}");
             }
 

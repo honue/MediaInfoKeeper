@@ -269,6 +269,7 @@ jobs:
               "/p:Version=${{ env.package_version }}"
               "/p:InformationalVersion=${{ env.package_version }}"
               "/p:ReleaseTag=${{ env.release_tag }}"
+              "/p:ReleaseRepository=${{ github.repository }}"
               "/p:TokenizerBundle=$bundle"
             )
 
