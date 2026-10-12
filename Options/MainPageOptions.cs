@@ -400,7 +400,7 @@ namespace MediaInfoKeeper.Options {
             public string UpdateChannel { get; set; } = UpdateChannelOption.Stable.ToString();
 
             [DisplayName("Beta GitHub 仓库链接")]
-            [Description("留空使用官方仓库；填写仓库首页链接，例如 https://github.com/sisheng36/MediaInfoKeeper。将从该仓库的最新 Release 下载插件，仓库需发布 MediaInfoKeeper.dll 或对应平台的 DLL。")]
+            [Description("留空使用官方仓库；填写仓库首页链接，例如 https://github.com/xxx/MediaInfoKeeper。将从该仓库的最新 Release 下载插件，仓库需发布 MediaInfoKeeper.dll 或对应平台的 DLL。")]
             [VisibleCondition(nameof(UpdateChannel), ValueCondition.IsEqual, nameof(UpdateChannelOption.Beta))]
             public string BetaRepositoryUrl { get; set; } = string.Empty;
 
