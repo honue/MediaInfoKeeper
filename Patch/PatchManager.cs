@@ -575,11 +575,12 @@ namespace MediaInfoKeeper.Patch {
                 Name = "DashboardResourcePatch",
                 Initialize = options => DashboardResourcePatch.Initialize(
                     logger,
-                    IsPluginEnabled(options) && options.MetaData.ScrapersEditor.Danmu.EnableDanmakuJs),
+                    IsPluginEnabled(options),
+                    options.MetaData.ScrapersEditor.Danmu.EnableDanmakuJs),
                 Configure = options => DashboardResourcePatch.Configure(
-                    IsPluginEnabled(options) && options.MetaData.ScrapersEditor.Danmu.EnableDanmakuJs),
-                IsEnabled = options => IsPluginEnabled(options) &&
-                                       options.MetaData.ScrapersEditor.Danmu.EnableDanmakuJs,
+                    IsPluginEnabled(options),
+                    options.MetaData.ScrapersEditor.Danmu.EnableDanmakuJs),
+                IsEnabled = IsPluginEnabled,
                 IsReady = () => DashboardResourcePatch.IsReady
             });
 

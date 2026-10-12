@@ -5,8 +5,6 @@ using MediaBrowser.Controller.Configuration;
 
 namespace MediaInfoKeeper.Web {
     internal static class PluginWebResourceLoader {
-        public static string ModifiedShortcutsString { get; private set; }
-
         public static string ModifiedRefreshDialogString { get; private set; }
 
         public static MemoryStream MediaInfoKeeperJs { get; private set; }
@@ -18,7 +16,6 @@ namespace MediaInfoKeeper.Web {
                 PatchHtmlVideoPlayer(configurationManager);
                 MediaInfoKeeperJs = GetResourceStream("mediainfokeeper.js");
                 EdeJs = GetResourceStream("ede.js");
-                BuildShortcutBootstrap(configurationManager);
                 BuildRefreshDialogPatch(configurationManager);
             }
             catch (Exception e) {
@@ -61,30 +58,6 @@ namespace MediaInfoKeeper.Web {
                 Plugin.Instance.Logger.Warn("PatchHtmlVideoPlayer failed: {0}", ex.Message);
                 Plugin.Instance.Logger.Error(ex.StackTrace);
             }
-        }
-
-        private static void BuildShortcutBootstrap(IServerConfigurationManager configurationManager) {
-            var dashboardSourcePath = configurationManager.Configuration.DashboardSourcePath ??
-                                      Path.Combine(configurationManager.ApplicationPaths.ApplicationResourcesPath,
-                                          "dashboard-ui");
-
-            const string bootstrapScript = @"
-;(function loadMediaInfoKeeperShortcutModule() {
-    if (window.__mediaInfoKeeperShortcutBootstrapLoaded) {
-        return;
-    }
-    window.__mediaInfoKeeperShortcutBootstrapLoaded = true;
-
-    if (typeof require !== 'function') {
-        return;
-    }
-
-    require(['components/mediainfokeeper/mediainfokeeper'], function () {}, function () {});
-})();
-";
-
-            ModifiedShortcutsString = File.ReadAllText(Path.Combine(dashboardSourcePath, "modules", "shortcuts.js")) +
-                                      bootstrapScript;
         }
 
         private static void BuildRefreshDialogPatch(IServerConfigurationManager configurationManager) {

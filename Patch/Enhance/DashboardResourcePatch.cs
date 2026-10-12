@@ -19,17 +19,36 @@ namespace MediaInfoKeeper.Patch {
         private static MethodInfo modifyHtmlMethod;
         private static bool isPatched;
 
+        private const string BootstrapMarker = "mediainfokeeper-bootstrap";
+
+        // 等 Emby 网页完全启动（ApiClient 出现）后再加载右键菜单脚本。
+        // 太早加载会找不到 connectionManager、toast 等模块名。
+        private const string BootstrapScript = @"<script id=""mediainfokeeper-bootstrap"">
+(function () {
+    function start() {
+        if (typeof require !== 'function' || !window.ApiClient) {
+            setTimeout(start, 300);
+            return;
+        }
+        require(['components/mediainfokeeper/mediainfokeeper'], function () {}, function (err) {
+            console.error('[MediaInfoKeeper] 右键菜单脚本加载失败', err);
+        });
+    }
+    start();
+})();
+</script>";
+
         public static bool IsReady => harmony != null && (!isEnabled || isPatched);
 
-        public static void Initialize(ILogger pluginLogger, bool enableDanmaku) {
+        public static void Initialize(ILogger pluginLogger, bool pluginEnabled, bool enableDanmaku) {
             if (harmony != null) {
-                Configure(enableDanmaku);
+                Configure(pluginEnabled, enableDanmaku);
                 return;
             }
 
             logger = pluginLogger;
             enableDanmakuJs = enableDanmaku;
-            isEnabled = enableDanmakuJs;
+            isEnabled = pluginEnabled;
 
             try {
                 var embyWebAssembly = Assembly.Load("Emby.Web");
@@ -78,9 +97,9 @@ namespace MediaInfoKeeper.Patch {
             }
         }
 
-        public static void Configure(bool enableDanmaku) {
+        public static void Configure(bool pluginEnabled, bool enableDanmaku) {
             enableDanmakuJs = enableDanmaku;
-            isEnabled = enableDanmakuJs;
+            isEnabled = pluginEnabled;
 
             if (harmony == null) return;
 
@@ -110,7 +129,7 @@ namespace MediaInfoKeeper.Patch {
 
         [HarmonyPostfix]
         private static void ModifyHtmlPostfix([HarmonyArgument(0)] string path, ref Task<StreamHandler> __result) {
-            if (!enableDanmakuJs) return;
+            if (!isEnabled) return;
 
             if (!string.Equals(path, "index.html", StringComparison.OrdinalIgnoreCase) || __result == null) return;
 
@@ -140,30 +159,33 @@ namespace MediaInfoKeeper.Patch {
 
         private static string RewriteDashboardIndexHtml(string content) {
             if (string.IsNullOrEmpty(content)) {
-                logger?.Warn("DashboardResourcePatch: index.html 内容为空，跳过注入 ede.js");
-                return content;
-            }
-
-            if (!enableDanmakuJs) {
-                logger?.Debug("DashboardResourcePatch: index.html 命中但 EnableDanmakuJs=false，跳过注入");
-                return content;
-            }
-
-            const string scriptTag = "<script src=\"components/mediainfokeeper/ede.js\" charset=\"utf-8\"></script>";
-            if (content.Contains(scriptTag, StringComparison.OrdinalIgnoreCase)) {
-                logger?.Debug("DashboardResourcePatch: index.html 已包含 ede.js，跳过重复注入");
+                logger?.Warn("DashboardResourcePatch: index.html 内容为空，跳过注入");
                 return content;
             }
 
             var bodyCloseIndex = content.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
             if (bodyCloseIndex < 0) {
-                logger?.Warn("DashboardResourcePatch: index.html 未找到 </body>，无法注入 ede.js");
+                logger?.Warn("DashboardResourcePatch: index.html 未找到 </body>，无法注入脚本");
                 return content;
             }
 
-            var rewritten = content.Insert(bodyCloseIndex, scriptTag + Environment.NewLine);
-            logger?.Debug("DashboardResourcePatch: index.html 注入弹幕js ede.js 成功");
-            return rewritten;
+            var injection = new StringBuilder();
+            if (!content.Contains(BootstrapMarker, StringComparison.OrdinalIgnoreCase)) {
+                injection.AppendLine(BootstrapScript);
+            }
+
+            const string edeTag = "<script src=\"components/mediainfokeeper/ede.js\" charset=\"utf-8\"></script>";
+            if (enableDanmakuJs && !content.Contains(edeTag, StringComparison.OrdinalIgnoreCase)) {
+                injection.AppendLine(edeTag);
+            }
+
+            if (injection.Length == 0) {
+                return content;
+            }
+
+            logger?.Debug("DashboardResourcePatch: index.html 注入右键菜单启动脚本{0}成功",
+                enableDanmakuJs ? "和弹幕 ede.js " : string.Empty);
+            return content.Insert(bodyCloseIndex, injection.ToString());
         }
     }
 }
