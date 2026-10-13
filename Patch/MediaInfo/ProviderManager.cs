@@ -147,32 +147,32 @@ namespace MediaInfoKeeper.Patch {
         }
 
         private static void RefreshItemPrefix([HarmonyArgument(0)] BaseItem item,
-            [HarmonyArgument(1)] MetadataRefreshOptions options, out FfProcessGuard.AllowanceHandle __state) {
-            __state = BeginRefreshFfprocessAllowance(item, options);
+            [HarmonyArgument(1)] MetadataRefreshOptions options, out RefreshScopeState __state) {
+            __state = BeginRefreshScope(item, options);
         }
 
         private static void RefreshItemPostfix([HarmonyArgument(0)] BaseItem item, ref Task __result,
-            FfProcessGuard.AllowanceHandle __state) {
-            CompleteRefreshFfprocessAllowance(item, ref __result, __state);
+            RefreshScopeState __state) {
+            CompleteRefreshScope(ref __result, __state);
         }
 
         private static void RefreshItemByNameChildrenPrefix([HarmonyArgument(0)] MusicAlbum item,
-            [HarmonyArgument(1)] MetadataRefreshOptions options, out FfProcessGuard.AllowanceHandle __state) {
-            __state = BeginRefreshFfprocessAllowance(item, options);
+            [HarmonyArgument(1)] MetadataRefreshOptions options, out RefreshScopeState __state) {
+            __state = BeginRefreshScope(item, options);
         }
 
         private static void RefreshItemByNameChildrenPostfix([HarmonyArgument(0)] MusicAlbum item, ref Task __result,
-            FfProcessGuard.AllowanceHandle __state) {
-            CompleteRefreshFfprocessAllowance(item, ref __result, __state);
+            RefreshScopeState __state) {
+            CompleteRefreshScope(ref __result, __state);
         }
 
         private static void RefreshSingleItemPrefix([HarmonyArgument(0)] BaseItem item,
-            [HarmonyArgument(1)] MetadataRefreshOptions options, out FfProcessGuard.AllowanceHandle __state) {
-            __state = BeginRefreshFfprocessAllowance(item, options);
+            [HarmonyArgument(1)] MetadataRefreshOptions options, out RefreshScopeState __state) {
+            __state = BeginRefreshScope(item, options);
         }
 
         private static void RefreshSingleItemPostfix([HarmonyArgument(0)] BaseItem item, ref object __result,
-            FfProcessGuard.AllowanceHandle __state) {
+            RefreshScopeState __state) {
             if (__state == null) return;
 
             if (__result is Task task) {
@@ -180,10 +180,10 @@ namespace MediaInfoKeeper.Patch {
                 return;
             }
 
-            FfProcessGuard.EndAllow(__state);
+            EndRefreshScope(__state);
         }
 
-        private static FfProcessGuard.AllowanceHandle BeginRefreshFfprocessAllowance(BaseItem item,
+        private static RefreshScopeState BeginRefreshScope(BaseItem item,
             MetadataRefreshOptions options) {
             if (item == null) return null;
 
@@ -193,52 +193,70 @@ namespace MediaInfoKeeper.Patch {
                 allowFfProcess = Plugin.ExternalFiles?.HasExternalFilesChanged(item, options.DirectoryService, true) ==
                                  true;
 
-            return FfProcessGuard.BeginAllow(new FfProcessGuard.AllowanceContext {
-                ItemInternalId = item.InternalId,
-                ItemPath = itemPath,
-                AllowFfProcess = allowFfProcess
-            });
+            return new RefreshScopeState {
+                FfProcessAllowance = FfProcessGuard.BeginAllow(new FfProcessGuard.AllowanceContext {
+                    ItemInternalId = item.InternalId,
+                    ItemPath = itemPath,
+                    AllowFfProcess = allowFfProcess
+                }),
+                ExternalImageProtection = ImageClearGuard.BeginExternalImageProtection(options)
+            };
         }
 
-        private static void CompleteRefreshFfprocessAllowance(BaseItem item, ref Task task,
-            FfProcessGuard.AllowanceHandle allowance) {
-            if (allowance == null) return;
+        private static void CompleteRefreshScope(ref Task task, RefreshScopeState scope) {
+            if (scope == null) return;
 
-            task = task == null ? null : AwaitTask(task, allowance);
-            if (task == null) FfProcessGuard.EndAllow(allowance);
+            task = task == null ? null : AwaitTask(task, scope);
+            if (task == null) EndRefreshScope(scope);
         }
 
-        private static object AwaitWithScope(Task task, FfProcessGuard.AllowanceHandle allowance) {
+        private static object AwaitWithScope(Task task, RefreshScopeState scope) {
             var taskType = task.GetType();
-            if (taskType == typeof(Task)) return AwaitTask(task, allowance);
+            if (taskType == typeof(Task)) return AwaitTask(task, scope);
 
             if (taskType.IsGenericType && taskType.GetGenericTypeDefinition() == typeof(Task<>)) {
                 var resultType = taskType.GetGenericArguments()[0];
                 var method = typeof(ProviderManager)
                     .GetMethod(nameof(AwaitGenericTask), BindingFlags.Static | BindingFlags.NonPublic)
                     ?.MakeGenericMethod(resultType);
-                return method?.Invoke(null, new object[] { task, allowance }) ?? task;
+                return method?.Invoke(null, new object[] { task, scope }) ?? task;
             }
 
             return task;
         }
 
-        private static async Task AwaitTask(Task task, FfProcessGuard.AllowanceHandle allowance) {
+        private static async Task AwaitTask(Task task, RefreshScopeState scope) {
             try {
                 await task.ConfigureAwait(false);
             }
             finally {
-                FfProcessGuard.EndAllow(allowance);
+                EndRefreshScope(scope);
             }
         }
 
-        private static async Task<T> AwaitGenericTask<T>(Task<T> task, FfProcessGuard.AllowanceHandle allowance) {
+        private static async Task<T> AwaitGenericTask<T>(Task<T> task, RefreshScopeState scope) {
             try {
                 return await task.ConfigureAwait(false);
             }
             finally {
-                FfProcessGuard.EndAllow(allowance);
+                EndRefreshScope(scope);
             }
+        }
+
+        private static void EndRefreshScope(RefreshScopeState scope) {
+            if (scope == null || scope.Ended) return;
+
+            scope.Ended = true;
+            FfProcessGuard.EndAllow(scope.FfProcessAllowance);
+            scope.ExternalImageProtection?.Dispose();
+        }
+
+        private sealed class RefreshScopeState {
+            public FfProcessGuard.AllowanceHandle FfProcessAllowance { get; set; }
+
+            public IDisposable ExternalImageProtection { get; set; }
+
+            public bool Ended { get; set; }
         }
     }
 }
