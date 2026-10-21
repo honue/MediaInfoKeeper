@@ -41,6 +41,7 @@ using MediaInfoKeeper.Services;
 using MediaInfoKeeper.Services.IntroSkip;
 using MediaInfoKeeper.Store;
 using MediaInfoKeeper.Web;
+using MediaInfoKeeper.Web.Handler;
 using static MediaInfoKeeper.Options.EnhanceOptions;
 using JsonSerializerOptions = System.Text.Json.JsonSerializerOptions;
 
@@ -786,6 +787,7 @@ namespace MediaInfoKeeper {
             PrefetchService?.Dispose();
             StrmFileWatcher?.Dispose();
             IntroSkipPlaySessionMonitor?.Dispose();
+            GenerateThumbnailsRouteHandler.Shutdown();
             if (ReferenceEquals(ReleaseInfoService, releaseInfoService)) ReleaseInfoService = null;
         }
     }

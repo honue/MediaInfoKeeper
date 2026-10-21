@@ -157,6 +157,21 @@ define(['connectionManager', 'globalize', 'loading', 'toast', 'confirm'], functi
             return 'Completed (no stats in response, check server logs)';
         }
 
+        if (isGenerateThumbnails) {
+            // 缩略图在后台生成，这里只代表“已提交”，不代表已生成完成
+            // 提示在点击后立即显示，此时后台还没开始，所以只在提交失败（如找不到生成器）时才显示失败数
+            if (locale === 'zh-cn') {
+                const failedText = normalized.failed > 0 ? `，提交失败 ${normalized.failed} 个` : '';
+                return `已提交 ${normalized.succeeded} 个，跳过 ${normalized.skipped} 个（已有或正在生成）${failedText}。后台生成中，请看日志`;
+            }
+            if (['zh-hk', 'zh-tw'].includes(locale)) {
+                const failedText = normalized.failed > 0 ? `，提交失敗 ${normalized.failed} 個` : '';
+                return `已提交 ${normalized.succeeded} 個，跳過 ${normalized.skipped} 個（已有或正在生成）${failedText}。後台生成中，請看日誌`;
+            }
+            const failedText = normalized.failed > 0 ? `, ${normalized.failed} failed to submit` : '';
+            return `Submitted ${normalized.succeeded}, skipped ${normalized.skipped} (existing or in progress)${failedText}. Generating in background, check server logs`;
+        }
+
         if (locale === 'zh-cn') {
             const prefix = isDelete ? '删除完成' : (isScanIntro ? '扫描完成' : (isScanExternalFiles ? '扫描完成' : (isSetIntro ? '设置完成' : (isClearIntro ? '清除完成' : (isGenerateThumbnails ? '生成完成' : '提取完成')))));
             return prefix + `：成功 ${normalized.succeeded}，失败 ${normalized.failed}，跳过 ${normalized.skipped}`;
