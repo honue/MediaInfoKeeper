@@ -14,8 +14,8 @@ using MediaInfoKeeper.Common;
 
 namespace MediaInfoKeeper.Services {
     internal static class TheIntroDbService {
-        private const string DefaultBaseUrl = "https://api.theintrodb.org/v3";
-        private const string MarkerCacheScope = "theintrodb-markers";
+        private const string DefaultBaseUrl = "https://api.theintrodb.org/v4";
+        private const string MarkerCacheScope = "theintrodb-markers-v4";
 
         private static readonly JsonSerializerOptions JsonOptions = new() {
             PropertyNameCaseInsensitive = true,
@@ -49,7 +49,7 @@ namespace MediaInfoKeeper.Services {
             var apiKey = Plugin.Instance?.Options?.MetaData?.ScrapersEditor?.TheIntroDb?.ApiKey?.Trim();
             if (string.IsNullOrWhiteSpace(apiKey)) return SubmitSkipped("missing api key");
 
-            if (!TryBuildSubmissionIdentity(item, out var tmdbId, out var mediaType, out var season, out var episode,
+            if (!TryBuildSubmissionIdentity(item, out var tmdbId, out var tvdbId, out var mediaType, out var season, out var episode,
                     out var imdbId, out var reason))
                 return SubmitSkipped(reason);
 
@@ -65,6 +65,7 @@ namespace MediaInfoKeeper.Services {
             if (TryBuildSegmentRequest(
                     item,
                     tmdbId,
+                    tvdbId,
                     mediaType,
                     "intro",
                     season,
@@ -92,6 +93,7 @@ namespace MediaInfoKeeper.Services {
             if (TryBuildSegmentRequest(
                     item,
                     tmdbId,
+                    tvdbId,
                     mediaType,
                     "credits",
                     season,
@@ -264,10 +266,14 @@ namespace MediaInfoKeeper.Services {
                 var responseBody = await ReadResponseBodyAsync(response).ConfigureAwait(false);
                 var statusCode = (int)response.StatusCode;
                 if (statusCode >= 200 && statusCode < 300) {
+                    var result = JsonSerializer.Deserialize<SubmissionResponse>(responseBody, JsonOptions);
+                    if (result?.Ok != true || result.Submissions == null || result.Submissions.Count == 0)
+                        return new MarkerSubmitResult { Reason = "invalid submission response" };
+
                     Plugin.SharedLogger?.Info("TheIntroDB 上报成功: {0}, segment={1}", detail, submission.Segment);
                     return new MarkerSubmitResult {
                         Succeeded = true,
-                        SubmittedSegments = 1
+                        SubmittedSegments = result.Submissions.Count
                     };
                 }
 
@@ -317,13 +323,15 @@ namespace MediaInfoKeeper.Services {
 
         private static bool TryBuildSubmissionIdentity(
             BaseItem item,
-            out int tmdbId,
+            out int? tmdbId,
+            out int? tvdbId,
             out string mediaType,
             out int? season,
             out int? episode,
             out string imdbId,
             out string reason) {
-            tmdbId = 0;
+            tmdbId = null;
+            tvdbId = null;
             mediaType = null;
             season = null;
             episode = null;
@@ -331,20 +339,28 @@ namespace MediaInfoKeeper.Services {
             reason = null;
 
             if (item is Movie movie) {
-                if (!TryParsePositiveInt(movie.GetProviderId(MetadataProviders.Tmdb), out tmdbId)) {
-                    reason = "missing movie tmdb id";
+                if (TryParsePositiveInt(movie.GetProviderId(MetadataProviders.Tvdb), out var movieTvdbId))
+                    tvdbId = movieTvdbId;
+                else if (TryParsePositiveInt(movie.GetProviderId(MetadataProviders.Tmdb), out var movieTmdbId))
+                    tmdbId = movieTmdbId;
+                imdbId = NormalizeImdbId(movie.GetProviderId(MetadataProviders.Imdb));
+                if (!tvdbId.HasValue && !tmdbId.HasValue && imdbId == null) {
+                    reason = "missing movie ids";
                     return false;
                 }
 
                 mediaType = "movie";
-                imdbId = NormalizeImdbId(movie.GetProviderId(MetadataProviders.Imdb));
                 return true;
             }
 
             if (item is Episode episodeItem) {
-                if (!TryParsePositiveInt(episodeItem.Series?.GetProviderId(MetadataProviders.Tmdb.ToString()),
-                        out tmdbId)) {
-                    reason = "missing series tmdb id";
+                if (TryParsePositiveInt(episodeItem.Series?.GetProviderId(MetadataProviders.Tvdb.ToString()), out var seriesTvdbId))
+                    tvdbId = seriesTvdbId;
+                else if (TryParsePositiveInt(episodeItem.Series?.GetProviderId(MetadataProviders.Tmdb.ToString()), out var seriesTmdbId))
+                    tmdbId = seriesTmdbId;
+                imdbId = NormalizeImdbId(episodeItem.Series?.GetProviderId(MetadataProviders.Imdb.ToString()));
+                if (!tvdbId.HasValue && !tmdbId.HasValue && imdbId == null) {
+                    reason = "missing series ids";
                     return false;
                 }
 
@@ -356,7 +372,6 @@ namespace MediaInfoKeeper.Services {
                 mediaType = "tv";
                 season = episodeItem.ParentIndexNumber.Value;
                 episode = episodeItem.IndexNumber.Value;
-                imdbId = NormalizeImdbId(episodeItem.Series?.GetProviderId(MetadataProviders.Imdb.ToString()));
                 return true;
             }
 
@@ -378,7 +393,8 @@ namespace MediaInfoKeeper.Services {
 
         private static bool TryBuildSegmentRequest(
             BaseItem item,
-            int tmdbId,
+            int? tmdbId,
+            int? tvdbId,
             string mediaType,
             string segment,
             int? season,
@@ -396,10 +412,12 @@ namespace MediaInfoKeeper.Services {
 
             request = new SubmissionRequest {
                 TmdbId = tmdbId,
+                TvdbId = tvdbId,
                 Type = mediaType,
                 Segment = segment,
                 Season = season,
                 Episode = episode,
+                Mapping = item is Episode episodeItem ? GetEpisodeMapping(episodeItem) : null,
                 VideoDurationMs = videoDurationMs,
                 StartMs = startMs,
                 EndMs = endMs,
@@ -494,10 +512,10 @@ namespace MediaInfoKeeper.Services {
 
         private static List<string> BuildIdQueryParts(string tmdbId, string tvdbId, string imdbId) {
             var queryParts = new List<string>();
-            if (TryParsePositiveInt(tmdbId, out var parsedTmdbId))
-                queryParts.Add("tmdb_id=" + parsedTmdbId);
-            else if (TryParsePositiveInt(tvdbId, out var parsedTvdbId))
+            if (TryParsePositiveInt(tvdbId, out var parsedTvdbId))
                 queryParts.Add("tvdb_id=" + parsedTvdbId);
+            else if (TryParsePositiveInt(tmdbId, out var parsedTmdbId))
+                queryParts.Add("tmdb_id=" + parsedTmdbId);
             else if (!string.IsNullOrWhiteSpace(imdbId)) queryParts.Add("imdb_id=" + Uri.EscapeDataString(imdbId.Trim()));
 
             return queryParts;
@@ -506,7 +524,7 @@ namespace MediaInfoKeeper.Services {
         private static MarkerLookupQuery BuildLookupQuery(BaseItem item, bool includeDuration) {
             var query = new MarkerLookupQuery();
             if (item is Movie movie) {
-                var requestParts = BuildIdQueryParts(movie.GetProviderId(MetadataProviders.Tmdb), null,
+                var requestParts = BuildIdQueryParts(movie.GetProviderId(MetadataProviders.Tmdb), movie.GetProviderId(MetadataProviders.Tvdb),
                     movie.GetProviderId(MetadataProviders.Imdb));
                 if (requestParts.Count == 0) {
                     query.Reason = "missing movie ids";
@@ -531,6 +549,7 @@ namespace MediaInfoKeeper.Services {
 
                 requestParts.Add("season=" + episode.ParentIndexNumber.Value);
                 requestParts.Add("episode=" + episode.IndexNumber.Value);
+                requestParts.Add("mapping=" + GetEpisodeMapping(episode));
                 query.CacheKey = string.Join("&", requestParts);
                 AppendDuration(requestParts, episode, includeDuration);
                 query.RequestParts = requestParts;
@@ -548,8 +567,24 @@ namespace MediaInfoKeeper.Services {
 
         private static string BuildApiUrl(string endpoint) {
             var configuredBaseUrl = Plugin.Instance?.Options?.MetaData?.ScrapersEditor?.TheIntroDb?.BaseUrl;
-            return (string.IsNullOrWhiteSpace(configuredBaseUrl) ? DefaultBaseUrl : configuredBaseUrl.Trim())
-                .TrimEnd('/') + "/" + endpoint;
+            var baseUrl = (string.IsNullOrWhiteSpace(configuredBaseUrl) ? DefaultBaseUrl : configuredBaseUrl.Trim())
+                .TrimEnd('/');
+            // Existing installations persist the old default URL in their configuration.
+            if (baseUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase) ||
+                baseUrl.EndsWith("/v2", StringComparison.OrdinalIgnoreCase) ||
+                baseUrl.EndsWith("/v3", StringComparison.OrdinalIgnoreCase))
+                baseUrl = baseUrl.Substring(0, baseUrl.Length - 3) + "/v4";
+
+            return baseUrl + "/" + endpoint;
+        }
+
+        private static string GetEpisodeMapping(Episode episode) {
+            return episode.Series?.DisplayOrder switch {
+                SeriesDisplayOrder.Aired => "official",
+                SeriesDisplayOrder.Dvd => "dvd",
+                SeriesDisplayOrder.Absolute => "absolute",
+                _ => "default"
+            };
         }
 
         private static void InvalidateMarkerCache(BaseItem item) {
@@ -660,7 +695,9 @@ namespace MediaInfoKeeper.Services {
         }
 
         private sealed class SubmissionRequest {
-            [JsonPropertyName("tmdb_id")] public int TmdbId { get; set; }
+            [JsonPropertyName("tmdb_id")] public int? TmdbId { get; set; }
+
+            [JsonPropertyName("tvdb_id")] public int? TvdbId { get; set; }
 
             [JsonPropertyName("type")] public string Type { get; set; }
 
@@ -670,6 +707,8 @@ namespace MediaInfoKeeper.Services {
 
             [JsonPropertyName("episode")] public int? Episode { get; set; }
 
+            [JsonPropertyName("mapping")] public string Mapping { get; set; }
+
             [JsonPropertyName("video_duration_ms")]
             public long? VideoDurationMs { get; set; }
 
@@ -678,6 +717,12 @@ namespace MediaInfoKeeper.Services {
             [JsonPropertyName("end_ms")] public long? EndMs { get; set; }
 
             [JsonPropertyName("imdb_id")] public string ImdbId { get; set; }
+        }
+
+        private sealed class SubmissionResponse {
+            public bool Ok { get; set; }
+
+            public List<JsonElement> Submissions { get; set; }
         }
 
         private sealed class SegmentTimestamp {
