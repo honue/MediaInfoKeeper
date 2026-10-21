@@ -232,7 +232,7 @@ namespace MediaInfoKeeper.Options {
             public override string EditorTitle => string.Empty;
 
             [DisplayName("API Key")]
-            [Description("可选。填写后可提高 TheIntroDB 每日请求额度。共享必填。")]
+            [Description("可选。填写后可提高 TheIntroDB 每日请求额度。共享必填。可前往 https://theintrodb.org 申请 API Key。")]
             public string ApiKey { get; set; } = string.Empty;
         }
 
