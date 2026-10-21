@@ -231,10 +231,6 @@ namespace MediaInfoKeeper.Options {
         public class TheIntroDbEditorOptions : EditableOptionsBase {
             public override string EditorTitle => string.Empty;
 
-            [DisplayName("API 地址")]
-            [Description("TheIntroDB v4 API 地址。是否启用 TheIntroDB Provider 请在媒体库的元数据抓取器中控制。")]
-            public string BaseUrl { get; set; } = "https://api.theintrodb.org/v4";
-
             [DisplayName("API Key")]
             [Description("可选。填写后可提高 TheIntroDB 每日请求额度。共享必填。")]
             public string ApiKey { get; set; } = string.Empty;

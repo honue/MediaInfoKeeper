@@ -14,7 +14,7 @@ using MediaInfoKeeper.Common;
 
 namespace MediaInfoKeeper.Services {
     internal static class TheIntroDbService {
-        private const string DefaultBaseUrl = "https://api.theintrodb.org/v4";
+        private const string BaseUrl = "https://api.theintrodb.org/v4";
         private const string MarkerCacheScope = "theintrodb-markers";
 
         private static readonly JsonSerializerOptions JsonOptions = new() {
@@ -566,16 +566,7 @@ namespace MediaInfoKeeper.Services {
         }
 
         private static string BuildApiUrl(string endpoint) {
-            var configuredBaseUrl = Plugin.Instance?.Options?.MetaData?.ScrapersEditor?.TheIntroDb?.BaseUrl;
-            var baseUrl = (string.IsNullOrWhiteSpace(configuredBaseUrl) ? DefaultBaseUrl : configuredBaseUrl.Trim())
-                .TrimEnd('/');
-            // Existing installations persist the old default URL in their configuration.
-            if (baseUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase) ||
-                baseUrl.EndsWith("/v2", StringComparison.OrdinalIgnoreCase) ||
-                baseUrl.EndsWith("/v3", StringComparison.OrdinalIgnoreCase))
-                baseUrl = baseUrl.Substring(0, baseUrl.Length - 3) + "/v4";
-
-            return baseUrl + "/" + endpoint;
+            return BaseUrl + "/" + endpoint;
         }
 
         private static string GetEpisodeMapping(Episode episode) {
