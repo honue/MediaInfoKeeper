@@ -15,7 +15,7 @@ using MediaInfoKeeper.Common;
 namespace MediaInfoKeeper.Services {
     internal static class TheIntroDbService {
         private const string DefaultBaseUrl = "https://api.theintrodb.org/v4";
-        private const string MarkerCacheScope = "theintrodb-markers-v4";
+        private const string MarkerCacheScope = "theintrodb-markers";
 
         private static readonly JsonSerializerOptions JsonOptions = new() {
             PropertyNameCaseInsensitive = true,
