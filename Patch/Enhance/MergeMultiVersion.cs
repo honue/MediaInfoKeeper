@@ -316,6 +316,7 @@ namespace MediaInfoKeeper.Patch {
                 var series = item as Series ?? (item as Season).Series;
                 var seriesTmdbId = series?.GetProviderId(MetadataProviders.Tmdb);
                 var episodeGroupId = series?.GetProviderId(MovieDbEpisodeGroupExternalId.StaticName)?.Trim();
+                var alternateRefreshOptions = BuildAlternateRefreshOptions(__result) ?? __result;
 
                 var itemsToRefresh = BaseItem.LibraryManager.GetItemList(new InternalItemsQuery {
                     PresentationUniqueKey = item.PresentationUniqueKey,
@@ -338,9 +339,34 @@ namespace MediaInfoKeeper.Patch {
                         }
                     }
 
-                    BaseItem.ProviderManager.QueueRefresh(alt.InternalId, __result, RefreshPriority.Normal, true);
+                    BaseItem.ProviderManager.QueueRefresh(alt.InternalId, alternateRefreshOptions, RefreshPriority.Normal,
+                        true);
                 }
+
+                if (itemsToRefresh.Length > 0 && !ReferenceEquals(alternateRefreshOptions, __result))
+                    logger?.Debug("MergeMultiVersion - 跨媒体库同步刷新已禁用图片替换: item={0}, count={1}",
+                        item.Name, itemsToRefresh.Length);
             }
+        }
+
+        private static MetadataRefreshOptions BuildAlternateRefreshOptions(MetadataRefreshOptions options) {
+            if (options == null) return null;
+
+            // Refreshing an equivalent series/season in another library only
+            // synchronizes grouping and metadata. Reusing a caller's full
+            // image refresh options can clear that library's existing local
+            // artwork while the source library is being rescanned.
+            var alternateOptions = new MetadataRefreshOptions(options) {
+                ImageRefreshMode = MetadataRefreshMode.ValidationOnly,
+                ReplaceAllImages = false,
+                ReplaceThumbnailImages = false,
+                EnableThumbnailImageExtraction = false
+            };
+
+            // ClearImages has no refresh-options argument, so carry this cross-library
+            // refresh identity into the provider refresh scope explicitly.
+            ImageClearGuard.MarkExternalImageProtection(alternateOptions);
+            return alternateOptions;
         }
     }
 }
