@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
@@ -405,11 +406,35 @@ namespace MediaInfoKeeper.Patch {
         }
 
         /// <summary>
-        ///     保留 URL 原始编码。直链中的签名参数可能依赖 %2B、%2F 等精确转义形式，
-        ///     不能通过 UriBuilder 或解码/重编码流程重建。
+        ///     按 IRI 转 URI 的安全字符白名单转义，保留已有百分号编码和签名查询串。
+        ///     与 Django iri_to_uri 一样保留 URL 分隔符及 %，不解码或重建查询参数。
         /// </summary>
         private static string NormalizeRedirectUrl(string url) {
-            return string.IsNullOrWhiteSpace(url) ? url : url.Trim();
+            if (string.IsNullOrWhiteSpace(url)) return url;
+
+            url = url.Trim();
+            StringBuilder result = null;
+            var index = 0;
+            while (index < url.Length) {
+                if (IsSafeUrlCharacter(url[index])) {
+                    result?.Append(url[index]);
+                    index++;
+                    continue;
+                }
+
+                // 仅遇到需要转义的字符时分配，并一次编码连续片段，保持代理项对完整。
+                result ??= new StringBuilder(url.Length).Append(url, 0, index);
+                var start = index++;
+                while (index < url.Length && !IsSafeUrlCharacter(url[index])) index++;
+                result.Append(Uri.EscapeDataString(url.Substring(start, index - start)));
+            }
+
+            return result?.ToString() ?? url;
+
+            static bool IsSafeUrlCharacter(char value) {
+                return value is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9'
+                       || "-._~:/?#[]@!$&'()*+,;=%".IndexOf(value) >= 0;
+            }
         }
 
         private static T GetPropertyValue<T>(object instance, string propertyName) {
