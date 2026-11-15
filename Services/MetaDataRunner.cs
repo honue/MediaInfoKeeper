@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Providers;
 
 namespace MediaInfoKeeper.Services {
@@ -121,6 +122,7 @@ namespace MediaInfoKeeper.Services {
                             Priority = priority,
                             CancellationToken = cancellationToken,
                             AllowFfProcess = allowFfProcess,
+                            ValidateAssociationAfterRefresh = existing.ValidateAssociationAfterRefresh,
                             Completion = existing.Completion
                         };
 
@@ -245,8 +247,10 @@ namespace MediaInfoKeeper.Services {
             finally {
                 lock (QueueSync) {
                     if (InFlightRefreshes.TryGetValue(request.InternalId, out var current) &&
-                        ReferenceEquals(current, request))
+                        ReferenceEquals(current, request)) {
                         InFlightRefreshes.Remove(request.InternalId);
+                        if (request.ValidateAssociationAfterRefresh) QueueAssociationValidation(request.InternalId);
+                    }
 
                     StartWorkersInsideLock();
                 }
@@ -260,9 +264,46 @@ namespace MediaInfoKeeper.Services {
             bool allowFfProcess) {
             if (item is Video || item is Audio) Plugin.SharedLogger?.Info("刷新元数据 {0}", item.FileName);
 
+            var previousSeriesKey = (item as Series)?.PresentationUniqueKey;
             await Plugin.MetaDataService
                 .RefreshMetaDataAsync(item, options, cancellationToken, allowFfProcess)
                 .ConfigureAwait(false);
+
+            if (item is Series series &&
+                !string.Equals(previousSeriesKey, series.PresentationUniqueKey, StringComparison.Ordinal)) {
+                // 剧识别后展示标识可能改变。按物理祖先关系找季和集，不能依赖此时已经失效的展示关联。
+                var children = Plugin.LibraryManager.GetItemList(new InternalItemsQuery {
+                    AncestorIds = new[] { series.InternalId },
+                    IncludeItemTypes = new[] { nameof(Season), nameof(Episode) },
+                    Recursive = true,
+                    GroupByPresentationUniqueKey = false
+                });
+                foreach (var child in children)
+                    if (!string.Equals(child.SeriesPresentationUniqueKey, series.PresentationUniqueKey,
+                            StringComparison.Ordinal))
+                        QueueAssociationValidation(child.InternalId);
+            }
+        }
+
+        private static void QueueAssociationValidation(long itemId) {
+            lock (QueueSync) {
+                if (InFlightRefreshes.TryGetValue(itemId, out var existing)) {
+                    // 不能被普通去重吞掉：当前刷新可能已使用旧剧标识，结束后必须再校验一次。
+                    existing.ValidateAssociationAfterRefresh = true;
+                    return;
+                }
+
+                var options = new MetadataRefreshOptions(new DirectoryService(Plugin.SharedLogger, Plugin.FileSystem)) {
+                    MetadataRefreshMode = MetadataRefreshMode.ValidationOnly,
+                    ImageRefreshMode = MetadataRefreshMode.ValidationOnly,
+                    EnableRemoteContentProbe = false,
+                    EnableThumbnailImageExtraction = false,
+                    EnableSubtitleDownloading = false,
+                    Recursive = false
+                };
+                // 只提交，不在父任务中等待，保持并发数为 1 时也能继续执行。
+                _ = QueueRefresh(itemId, options, CancellationToken.None, RefreshPriority.Highest);
+            }
         }
 
         private static async Task RefreshRecursiveFolderAsync(Folder folder, RefreshRequest request) {
@@ -339,6 +380,8 @@ namespace MediaInfoKeeper.Services {
             public bool Started { get; set; }
 
             public bool Disabled { get; set; }
+
+            public bool ValidateAssociationAfterRefresh { get; set; }
         }
     }
 }
