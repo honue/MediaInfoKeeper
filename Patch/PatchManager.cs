@@ -157,11 +157,11 @@ namespace MediaInfoKeeper.Patch {
             });
 
             registrations.Add(new PatchRegistration {
-                Name = "StrmMediaInfoGuard",
-                Initialize = _ => MediaInfoClearGuard.Initialize(logger, true),
-                Configure = _ => MediaInfoClearGuard.Configure(true),
+                Name = "IgnoreFileChange",
+                Initialize = options => IgnoreFileChange.Initialize(logger, IsPluginEnabled(options)),
+                Configure = options => IgnoreFileChange.Configure(IsPluginEnabled(options)),
                 IsEnabled = options => IsPluginEnabled(options),
-                IsReady = () => MediaInfoClearGuard.IsReady
+                IsReady = () => IgnoreFileChange.IsReady
             });
 
             registrations.Add(new PatchRegistration {

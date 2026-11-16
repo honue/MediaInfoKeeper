@@ -78,9 +78,7 @@ namespace MediaInfoKeeper.Web.Handler {
             var workItem = _libraryManager.GetItemById(item.InternalId);
             if (!(workItem is Video) && !(workItem is Audio)) return false;
 
-            using (MediaInfoClearGuard.Allow()) {
-                _itemRepository.SaveMediaStreams(workItem.InternalId, new List<MediaStream>(), CancellationToken.None);
-            }
+            _itemRepository.SaveMediaStreams(workItem.InternalId, new List<MediaStream>(), CancellationToken.None);
 
             workItem.MediaStreams = new List<MediaStream>();
             workItem.RunTimeTicks = null;
