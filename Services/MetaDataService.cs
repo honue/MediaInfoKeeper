@@ -19,6 +19,8 @@ namespace MediaInfoKeeper.Services {
             bool allowFfProcess = false) {
             if (item == null || options == null) return;
 
+            using var externalImageProtection = ImageClearGuard.BeginExternalImageProtection(options);
+
             if (allowFfProcess) {
                 using (FfProcessGuard.Allow()) {
                     await providerManager
